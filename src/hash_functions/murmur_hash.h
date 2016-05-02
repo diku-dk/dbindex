@@ -30,7 +30,7 @@ FORCE_INLINE std::uint32_t fmix32 ( std::uint32_t h )
   return h;
 }
 
-namespace multicore_hash {
+namespace dbindex {
 
   template<typename value_t = std::uint32_t>
   class murmur_hash : public abstract_hash<value_t> {

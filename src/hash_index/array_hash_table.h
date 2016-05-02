@@ -6,15 +6,16 @@
 #include <queue>
 #include <vector>
 #include <boost/thread.hpp>
-#include "abstract_hash_table.h"
+
+#include "../abstract_index.h"
 
 #define CACHE_LINE_SIZE 64
 typedef boost::shared_mutex shared_mutex;
 typedef std::string value_t;
-namespace multicore_hash {
+namespace dbindex {
 
 	template<typename key_t, typename test, std::uint32_t directory_size>
-	class array_hash_table : public abstract_hash_table<key_t, value_t> {
+	class array_hash_table : public abstract_index<key_t, value_t> {
 	private:
 		abstract_hash<hash_value_t> *hash;
 			

@@ -10,15 +10,19 @@ OPTFLAG = -03 -funroll-loops
 BUILD_DIR = bin
 OBJ_DIR = $(BUILD_DIR)/objs
 SRC_DIR = src
-BASIC_OBJS = $(pathsubst $(SRC_DIR)/%/%.cc, $(OBJ_DIR)/%/%.o $(wildcard $(SRC_DIR)/*/*.cc))
+BASIC_OBJS := $(pathsubst $(SRC_DIR)/%/%.cc, $(OBJ_DIR)/%/%.o $(wildcard $(SRC_DIR)/*/*.cc))
 BENCHMARK_SRC = $(SRC_DIR)/benchmarks
-BENCHMARK_OBJS = $(pathsubst $(BENCHMARK_SRC)/%/%.cc, $(OBJ_DIR)/benchmarks/%/%.o $(wildcard $(BENCHMARK_SRC)/*/*.cc))
+BENCHMARK_OBJS := $(pathsubst $(BENCHMARK_SRC)/%/%.cc, $(OBJ_DIR)/benchmarks/%/%.o $(wildcard $(BENCHMARK_SRC)/*/*.cc))
 TEST_DIR = test
-TEST_EXECS = $(patsubst $(TEST_DIR)/%.cc, $(BUILD_DIR)/test/%, $(wildcard $(TEST_DIR)/*.cc))
+TEST_EXECS := $(patsubst $(TEST_DIR)/%.cc, $(BUILD_DIR)/test/%, $(wildcard $(TEST_DIR)/*.cc))
 
 all: $(BENCHMARK_OBJS) $(TEST_EXECS)
 
 rebuild : clean all
+
+$(OBJ_DIR)/%.o : $(SRC_DIR)/%.cc
+	@mkdir -p $(@D)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/%/%.o : $(SRC_DIR)/%/%.cc
 	@mkdir -p $(@D)

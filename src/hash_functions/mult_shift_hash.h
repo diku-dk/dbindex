@@ -12,7 +12,7 @@
 #include "abstract_hash.h"
 
 
-namespace multicore_hash {
+namespace dbindex {
   template<typename value_t = std::uint32_t>
   class mult_shift_hash : public abstract_hash<value_t> {
   private:
@@ -27,7 +27,7 @@ namespace multicore_hash {
       seed = distribution(generator) | 1;
     }    
 
-    value_t get_hash(const std::string key) override {
+    value_t get_hash(const std::string& key) override {
       uint64_t ukey; 
       std::copy(&key[0], &key[0] + sizeof(ukey), reinterpret_cast<char*>(&ukey));
       return (value_t)((seed*ukey) >> (64-l));

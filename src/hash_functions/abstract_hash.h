@@ -3,13 +3,18 @@
 
 #include <string>
 
-namespace multicore_hash {
-	template<typename value_t>
-	class abstract_hash
-	{
-	public:
-		virtual value_t get_hash(const std::string) = 0;
-	};
+namespace dbindex {
+    /**
+     * Interface for a hash function
+     */
+    template<typename value_t>
+    class abstract_hash {
+    public:
+        virtual value_t get_hash(const std::string& key) = 0;
+        virtual ~abstract_hash() {
+        }
+        ;
+    };
 }
 
 #endif

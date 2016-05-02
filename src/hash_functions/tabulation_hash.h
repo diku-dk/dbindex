@@ -13,7 +13,7 @@
 
 #define CACHE_LINE_SIZE 64
 
-namespace multicore_hash {
+namespace dbindex {
   template<typename value_t = std::uint32_t, std::uint8_t _num_tables = 1>
   class tabulation_hash : public abstract_hash<value_t> {
   private:

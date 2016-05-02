@@ -5,7 +5,7 @@
 #include <cppunit/TestAssert.h>
 #include <cppunit/TestCaller.h>
 #include <cppunit/TestSuite.h>
-#include "../src/hash_index/abstract_hash_table.h"
+#include "../src/abstract_index.h"
 #include "../src/hash_index/array_hash_table.h"
 #include "../src/hash_functions/mod_hash.h"
 #include <boost/thread.hpp>
@@ -15,7 +15,7 @@
 
 #define value_t std::uint32_t
 
-namespace multicore_hash {
+namespace dbindex {
 	constexpr std::uint8_t initial_bucket_size = 2;
 	constexpr std::uint32_t _directory_size = 4;
 

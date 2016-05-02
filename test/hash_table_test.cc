@@ -15,7 +15,7 @@
 
 	int main(int argc, char *argv[]) {
 		CppUnit::TextUi::TestRunner runner;
-	  runner.addTest( multicore_hash::extendible_hash_table_test::suite() );
-	  runner.addTest( multicore_hash::array_hash_table_test::suite() );
+	  runner.addTest( dbindex::extendible_hash_table_test::suite() );
+	  runner.addTest( dbindex::array_hash_table_test::suite() );
 	  runner.run();
 	}

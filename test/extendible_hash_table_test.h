@@ -5,7 +5,7 @@
 #include <cppunit/TestAssert.h>
 #include <cppunit/TestCaller.h>
 #include <cppunit/TestSuite.h>
-#include "../src/hash_index/abstract_hash_table.h"
+#include "../src/abstract_index.h"
 #include "../src/hash_index/extendible_hash_table.h"
 #include "../src/hash_functions/mod_hash.h"
 #include <boost/thread.hpp>
@@ -16,7 +16,7 @@
 #define hash_value_t std::uint32_t
 typedef boost::shared_mutex shared_mutex;
 
-namespace multicore_hash {
+namespace dbindex {
 	int stick_thread_to_core(pthread_t thread, int core_id) {
 	   	cpu_set_t cpuset;
    		CPU_ZERO(&cpuset);
