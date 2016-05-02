@@ -9,29 +9,26 @@
 #include <stdexcept>
 #include <cassert>
 #include <iostream>
+#include <chrono>
 #include "abstract_hash.h"
 
-
 namespace dbindex {
-  template<typename value_t = std::uint32_t>
-  class mult_shift_hash : public abstract_hash<value_t> {
-  private:
-    const std::uint8_t l = sizeof(value_t)*8;
-    value_t seed;
-    
-  public:
-    mult_shift_hash() {
-      std::random_device rd;
-      std::mt19937 generator(rd());
-      std::uniform_int_distribution<value_t> distribution(0, std::numeric_limits<value_t>::max());
-      seed = distribution(generator) | 1;
-    }    
+    template<typename value_t = std::uint32_t>
+    class mult_shift_hash: public abstract_hash<value_t> {
+        constexpr static std::uint8_t shift_by = (sizeof(std::uint64_t)
+                - sizeof(value_t)) * 8;
+    private:
+        value_t seed {
+                static_cast<value_t>(std::chrono::high_resolution_clock::now().time_since_epoch().count()) };
 
-    value_t get_hash(const std::string& key) override {
-      uint64_t ukey; 
-      std::copy(&key[0], &key[0] + sizeof(ukey), reinterpret_cast<char*>(&ukey));
-      return (value_t)((seed*ukey) >> (64-l));
-    }
-  };
+    public:
+        value_t get_hash(const std::string& key) override {
+            assert(key.size() <= sizeof(char)*8);
+            std::uint64_t ukey {0};
+            std::copy(&key[0], &key[0] + key.size(),
+                    reinterpret_cast<char*>(&ukey));
+            return static_cast<value_t>((seed * ukey) >> shift_by);
+        }
+    };
 }
 #endif
