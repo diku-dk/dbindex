@@ -19,9 +19,13 @@ namespace dbindex {
                 - sizeof(value_t)) * 8;
     private:
         value_t seed {
-                static_cast<value_t>(std::chrono::high_resolution_clock::now().time_since_epoch().count()) };
+                static_cast<value_t>(std::chrono::high_resolution_clock::now().time_since_epoch().count())};
 
     public:
+        mult_shift_hash() {
+            seed |= 1;
+        }
+
         value_t get_hash(const std::string& key) override {
             assert(key.size() <= sizeof(char)*8);
             std::uint64_t ukey {0};
