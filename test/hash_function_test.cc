@@ -43,11 +43,12 @@
 #include <limits>
 #include "../src/hash_functions/mod_hash.h"
 #include "../src/hash_functions/mult_shift_hash.h"
+#include "../src/hash_functions/murmur_hash_32.h"
 
 namespace dbindex {
     namespace test {
         class hash_function_test: public CppUnit::TestFixture {
-            using hash_value_t = std::uint16_t;
+            using hash_value_t = std::uint32_t;
             using input_key_t = std::uint64_t;
             static constexpr int MOD_HASH_MOD_VAL = 100;
             static constexpr int NUM_EQUALITY_INPUTS = 100;
@@ -59,6 +60,7 @@ namespace dbindex {
         void setUp() {
             hash_functions.emplace_back(std::unique_ptr<dbindex::abstract_hash<hash_value_t>>(new dbindex::mod_hash<hash_value_t,MOD_HASH_MOD_VAL>()));
             hash_functions.emplace_back(std::unique_ptr<dbindex::abstract_hash<hash_value_t>>(new dbindex::mult_shift_hash<hash_value_t>()));
+            hash_functions.emplace_back(std::unique_ptr<dbindex::abstract_hash<hash_value_t>>(new dbindex::murmur_hash_32<hash_value_t>()));
         }
 
         void tearDown() {

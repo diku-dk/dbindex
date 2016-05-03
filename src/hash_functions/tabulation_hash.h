@@ -75,7 +75,7 @@ namespace dbindex {
     }
     
 
-    value_t get_hash(const std::string key) override {
+    value_t get_hash(const std::string& key) override {
       // if (key.size() > sizeof(std::uint8_t)*num_tables) { // round robin instead
       //   throw std::invalid_argument("Key length is too big.");
       // }
