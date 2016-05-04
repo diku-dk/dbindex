@@ -39,6 +39,7 @@
 #include "random_numbers.h"
 
 namespace dbindex {
+
     template<typename value_t = std::uint32_t, std::uint8_t num_tables = 1>
     class tabulation_hash: public abstract_hash<value_t> {
     private:
@@ -47,6 +48,7 @@ namespace dbindex {
 
     public:
         tabulation_hash() {
+            static_assert(alignof(tabulation_tables) % sizeof(value_t) == 0, "Tabulation entries can span across cache line");
             fill_random_numbers<value_t,
                     num_tables * std::numeric_limits<std::uint8_t>::max()>(
                     &(tabulation_tables[0][0]));
