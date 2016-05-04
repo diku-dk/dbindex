@@ -42,10 +42,6 @@ namespace dbindex {
     template<typename value_t = std::uint32_t, std::uint8_t num_tables = 1>
     class tabulation_hash: public abstract_hash<value_t> {
     private:
-        /*struct alignas(CACHE_LINE_SIZE) tabulation_value {
-            value_t value;
-        };*/
-
         alignas(CACHE_LINE_SIZE) value_t tabulation_tables[num_tables][std::numeric_limits<
                 std::uint8_t>::max()];
 
@@ -62,7 +58,7 @@ namespace dbindex {
 
             auto ukey = reinterpret_cast<const uint8_t*>(key.c_str());
             value_t hash_result = 0;
-            for (uint8_t i = 0; i < key.size(); i++) {
+            for (std::uint8_t i = 0; i < key.size(); i++) {
                 hash_result ^= tabulation_tables[i % num_tables][ukey[i]];
             }
             return hash_result;
