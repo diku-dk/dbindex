@@ -44,6 +44,7 @@
 #include "../src/hash_functions/mod_hash.h"
 #include "../src/hash_functions/mult_shift_hash.h"
 #include "../src/hash_functions/murmur_hash_32.h"
+#include "../src/hash_functions/tabulation_hash.h"
 
 namespace dbindex {
     namespace test {
@@ -61,6 +62,7 @@ namespace dbindex {
             hash_functions.emplace_back(std::unique_ptr<dbindex::abstract_hash<hash_value_t>>(new dbindex::mod_hash<hash_value_t,MOD_HASH_MOD_VAL>()));
             hash_functions.emplace_back(std::unique_ptr<dbindex::abstract_hash<hash_value_t>>(new dbindex::mult_shift_hash<hash_value_t>()));
             hash_functions.emplace_back(std::unique_ptr<dbindex::abstract_hash<hash_value_t>>(new dbindex::murmur_hash_32<hash_value_t>()));
+            hash_functions.emplace_back(std::unique_ptr<dbindex::abstract_hash<hash_value_t>>(new dbindex::tabulation_hash<hash_value_t>()));
         }
 
         void tearDown() {

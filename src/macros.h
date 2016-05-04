@@ -2,7 +2,7 @@
  * The MIT License (MIT)
  *
  * Copyright (c) 2016 Vivek Shah (University of Copenhagen)
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -20,37 +20,17 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
- *
- * abstract_hash.h
+ * 
+ * macros.h
  *
  *  Created on: May 3, 2016
  *  Author: Vivek Shah <bonii @ di.ku.dk>
  */
-#ifndef SRC_HASH_FUNCTIONS_ABSTRACT_HASH_H_
-#define SRC_HASH_FUNCTIONS_ABSTRACT_HASH_H_
+#ifndef SRC_MACROS_H_
+#define SRC_MACROS_H_
 
-#include <string>
-#include <stdexcept>
+#define CACHE_LINE_SIZE 64
 
-namespace dbindex {
-    /**
-     * Interface for a hash function
-     */
-    template<typename value_t>
-    class abstract_hash {
-    protected:
-        virtual void check_key_not_empty(const std::string& key) const final {
-            if (key.length() == 0) {
-                throw std::invalid_argument("Key cannot be empty");
-            }
-        }
-    public:
-        virtual value_t get_hash(const std::string& key) = 0;
 
-        virtual ~abstract_hash() {
-        }
-        ;
-    };
-}
 
-#endif /* SRC_HASH_FUNCTIONS_ABSTRACT_HASH_H_ */
+#endif /* SRC_MACROS_H_ */
