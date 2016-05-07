@@ -15,7 +15,7 @@ typedef std::string value_t;
 namespace dbindex {
 
 	template<typename key_t, typename test, std::uint32_t directory_size>
-	class array_hash_table : public abstract_index<key_t, value_t> {
+	class array_hash_table : public abstract_index {
 	private:
 		abstract_hash<hash_value_t> *hash;
 			

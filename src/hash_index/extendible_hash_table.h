@@ -15,7 +15,7 @@ typedef std::uint32_t hash_value_t;
 
 namespace dbindex {
 	template<typename key_t, typename value_t, std::uint8_t initial_global_depth>
-	class extendible_hash_table : public abstract_index<key_t, value_t> {
+	class extendible_hash_table : public abstract_index {
 	private:
 		abstract_hash<hash_value_t> *hash;
 			
