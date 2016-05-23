@@ -1,5 +1,5 @@
-#ifndef extendible_hash_table_test_h
-#define extendible_hash_table_test_h
+#ifndef TEST_EXTENDIBLE_HASH_TABLE_TEST_H_
+#define TEST_EXTENDIBLE_HASH_TABLE_TEST_H_
 
 #include <cppunit/TestFixture.h>
 #include <cppunit/TestAssert.h>
@@ -8,25 +8,18 @@
 #include "../src/abstract_index.h"
 #include "../src/hash_index/extendible_hash_table.h"
 #include "../src/hash_functions/mod_hash.h"
+#include "../src/push_ops.h"
+#include "../src/util/thread_util.h"
 #include <boost/thread.hpp>
 #include <boost/thread/shared_mutex.hpp>
 #include <thread>
-#include <pthread.h>
 
-#define hash_value_t std::uint32_t
 typedef boost::shared_mutex shared_mutex;
 
 namespace dbindex {
-	int stick_thread_to_core(pthread_t thread, int core_id) {
-	   	cpu_set_t cpuset;
-   		CPU_ZERO(&cpuset);
-   		CPU_SET(core_id, &cpuset);
-		
-		return pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
-	}
-	constexpr std::uint8_t initial_global_depht = 2;
 
-	void insert_concurrent(extendible_hash_table<std::string, std::string, initial_global_depht> *hash_table, std::string *keys, std::uint32_t amount) {
+	constexpr std::uint8_t initial_global_depht = 2;
+	void insert_concurrent(extendible_hash_table<initial_global_depht> *hash_table, std::string *keys, std::uint32_t amount) {
 		// Calculating the hashing
 		for(std::uint32_t j = 0; j < amount; j++) {
 			hash_table->insert(keys[j], keys[j]);
@@ -75,7 +68,7 @@ namespace dbindex {
 	class extendible_hash_table_test : public CppUnit::TestFixture {
 	private:
 		abstract_hash<std::uint32_t> *hash;
-		extendible_hash_table<std::string, std::string, initial_global_depht> *hash_table;
+		extendible_hash_table<initial_global_depht> *hash_table;
 		abstract_push_op *concat_push;
 
 	public:
@@ -83,7 +76,7 @@ namespace dbindex {
 
 		void setUp() {
 			hash = new mod_hash<hash_value_t, (1<<31)>();
-			hash_table = new extendible_hash_table<std::string, std::string, initial_global_depht>(hash);
+			hash_table = new extendible_hash_table<initial_global_depht>(hash);
 			concat_push = new concat_push_op();
 		}
 
@@ -120,14 +113,14 @@ namespace dbindex {
 			std::uint64_t i = 0;
 			std::uint8_t  p = 10;
 			for (std::uint8_t j = 1; j <= p; j++) {
-	  			for (; i < (1<<j)*hash_table->get_bucket_entries(); i++)
+	  			for (; i < (std::uint32_t)(1<<j)*hash_table->get_bucket_entries(); i++)
 	  			{
 					hash_table->insert(std::to_string(i*hash_table->get_bucket_entries()), " 1");
 	  			}
 				CPPUNIT_ASSERT(hash_table->get_global_depth() == 2+j);
 	  		}
-			CPPUNIT_ASSERT(hash_table->size() == (1<<p)*hash_table->get_bucket_entries());
-			for (i = 0; i < (1<<p)*hash_table->get_bucket_entries(); i++)
+			CPPUNIT_ASSERT(hash_table->size() == (std::uint32_t)(1<<p)*hash_table->get_bucket_entries());
+			for (i = 0; i < (std::uint32_t)(1<<p)*hash_table->get_bucket_entries(); i++)
   			{
 				hash_table->remove(std::to_string(i*hash_table->get_bucket_entries()));
   			}
@@ -233,7 +226,7 @@ namespace dbindex {
 			
  			for(std::uint32_t t = 0; t < num_threads; t++) {
 				threads[t] = std::thread(insert_concurrent, hash_table, &keys[t*amount], amount);
-				stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
+				utils::stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
 			}
 			for(std::uint32_t t = 0; t < num_threads; t++) {
 				threads[t].join();
@@ -255,7 +248,7 @@ namespace dbindex {
 			
  			for(std::uint32_t t = 0; t < num_threads; t++) {
 				threads[t] = std::thread(insert_concurrent, hash_table, &keys[t*amount], amount);
-				stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
+				utils::stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
 			}
 			for(std::uint32_t t = 0; t < num_threads; t++) {
 				threads[t].join();
@@ -270,7 +263,7 @@ namespace dbindex {
 
  		// 	for(std::uint32_t t = 0; t < num_threads; t++) {
 			// 	threads[t] = boost::thread(test_upgrade);
-			// 	stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
+			// 	utils::stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
 			// }
 			// for(std::uint32_t t = 0; t < num_threads; t++) {
 			// 	threads[t].join();
@@ -338,4 +331,4 @@ namespace dbindex {
 		// Implement size
 	};
 }
-#endif
+#endif /* TEST_EXTENDIBLE_HASH_TABLE_TEST_H_ */

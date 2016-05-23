@@ -8,18 +8,17 @@
 #include "../src/abstract_index.h"
 #include "../src/hash_index/array_hash_table.h"
 #include "../src/hash_functions/mod_hash.h"
+#include "../src/push_ops.h"
+#include "../src/util/thread_util.h"
 #include <boost/thread.hpp>
 #include <boost/thread/shared_mutex.hpp>
 #include <thread>
-#include <pthread.h>
-
-#define value_t std::uint32_t
 
 namespace dbindex {
 	constexpr std::uint8_t initial_bucket_size = 2;
 	constexpr std::uint32_t _directory_size = 4;
 
-	void insert_array_concurrent(array_hash_table<std::string, std::string, _directory_size> *hash_table, std::string *keys, std::uint32_t amount) {
+	void insert_array_concurrent(array_hash_table<_directory_size> *hash_table, std::string *keys, std::uint32_t amount) {
 		// Calculating the hashing
 		for(std::uint32_t j = 0; j < amount; j++) {
 			hash_table->insert(keys[j], keys[j]);
@@ -28,17 +27,16 @@ namespace dbindex {
 
 	class array_hash_table_test : public CppUnit::TestFixture {
 	private:
-		abstract_hash<std::uint32_t> *hash;
-		array_hash_table<std::string, std::string, _directory_size> *hash_table;
+		abstract_hash<hash_value_t> *hash;
+		array_hash_table<_directory_size> *hash_table;
 		abstract_push_op *concat_push;
 
 	public:
 		array_hash_table_test(){}
 
 		void setUp() {
-			std::uint32_t _initial_bucket_size = 2;
-			hash = new mod_hash<value_t, (1<<31)>();
-			hash_table = new array_hash_table<std::string, std::string, _directory_size>(hash, _initial_bucket_size);
+			hash = new mod_hash<hash_value_t, (1<<31)>();
+			hash_table = new array_hash_table<_directory_size>(hash);
 			concat_push = new concat_push_op();
 		}
 
@@ -166,7 +164,7 @@ namespace dbindex {
 			
  			for(std::uint32_t t = 0; t < num_threads; t++) {
 				threads[t] = std::thread(insert_array_concurrent, hash_table, &keys[t*amount], amount);
-				stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
+				utils::stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
 			}
 			for(std::uint32_t t = 0; t < num_threads; t++) {
 				threads[t].join();
@@ -188,7 +186,7 @@ namespace dbindex {
 			
  			for(std::uint32_t t = 0; t < num_threads; t++) {
 				threads[t] = std::thread(insert_array_concurrent, hash_table, &keys[t*amount], amount);
-				stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
+				utils::stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
 			}
 			for(std::uint32_t t = 0; t < num_threads; t++) {
 				threads[t].join();

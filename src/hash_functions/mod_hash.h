@@ -34,7 +34,7 @@
 
 namespace dbindex {
     template<typename value_t = std::uint32_t, std::uint32_t _mod_value = 2>
-    class mod_hash: public abstract_hash<value_t> {
+    class mod_hash : public abstract_hash<value_t> {
     public:
         value_t get_hash(const std::string& key) override {
             this->check_key_not_empty(key);
