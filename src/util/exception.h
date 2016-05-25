@@ -31,7 +31,7 @@
 
 #include <exception>
 
-namespace {
+namespace utils {
     class not_implemented_exception: public std::exception {
     public:
         virtual const char* what() const throw () {

@@ -2,22 +2,10 @@
 #define abstract_hash_table_h
 
 #include "./hash_functions/abstract_hash.h"
+#include "push_ops.h"
 #include <string>
 
 namespace dbindex {
-    /**
-     * Interface for a push operator for
-     * a scan operation on the index structure
-     */
-    class abstract_push_op {
-    public:
-        virtual ~abstract_push_op() {
-        }
-        ;
-        virtual bool invoke(const char *keyp, size_t keylen,
-                const std::string &value) =0;
-    };
-
     /**
      * Interface of the index structure, the scan operation may or
      * may not be implemented
@@ -32,9 +20,7 @@ namespace dbindex {
                 abstract_push_op&) = 0;
         virtual void reverse_range_scan(const std::string& start_key,
                 const std::string* end_key, abstract_push_op&) = 0;
-        virtual ~abstract_index() {
-        }
-        ;
+        virtual ~abstract_index() {};
     };
 }
 
