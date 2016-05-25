@@ -2,7 +2,7 @@ NUM_TABLES     = -1
 NUM_THREADS    = -1
 
 CXX = g++
-CXXFLAGS = -std=c++14 -Wall -MMD -fno-omit-frame-pointer -g 
+CXXFLAGS = -std=c++11 -Wall -MMD -fno-omit-frame-pointer -g 
 LDFLAGS = -lpthread -lboost_system -lboost_thread
 LDTESTFLAG = -lcppunit
 OPTFLAG = -03 -funroll-loops
