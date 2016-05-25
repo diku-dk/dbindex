@@ -84,7 +84,7 @@ static const workload_properties workload_e = {
 static const workload_properties workload_f = {
     100000, 100000,
     0.5, 0, 0, 0, 0.5, 
-    distribution_type::ZIPFIAN, distribution_type::ZIPFIAN, 
+    distribution_type::ZIPFIAN, distribution_type::UNUSED, 
     0, 100
 };
 
