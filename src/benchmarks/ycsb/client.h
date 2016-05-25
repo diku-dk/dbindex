@@ -17,9 +17,9 @@ class client {
         wl.init(p);
     }
     
-    void run_workload();
+    std::uint32_t run_workload();
     void run_build_records(std::uint8_t thread_count);
-    void run_transactions(std::uint8_t thread_count);
+    std::uint32_t run_transactions(std::uint8_t thread_count);
 
     ~client() {}
     
