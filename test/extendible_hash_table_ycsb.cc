@@ -112,15 +112,14 @@ void test_workload_a(std::uint8_t thread_count, std::string workload_string, std
     client.run_build_records(thread_count);
 
     // Calculating the hashing
-    std::uint32_t iterations = 50;
+    std::uint32_t iterations = 5;
 
     std::uint32_t thread_total_duration;
-    std::vector<std::uint32_t> durations{iterations*thread_count};
-
+    std::uint32_t durations[iterations*thread_count];
 
         // Opening Data File
     std::ofstream out_file;
-    std::string path = "results/" + hash_func_string + "_" + hash_index_string + ".txt";
+    std::string path = "results/" + hash_func_string + "_" + hash_index_string + "_" + workload_string + ".txt";
     std::cout << path << std::endl;
     out_file.open (path);
     out_file.clear();
@@ -129,20 +128,19 @@ void test_workload_a(std::uint8_t thread_count, std::string workload_string, std
         return;
     }
 
-
         // Running experiments 
     std::cout << "Running benchmark with " << workload_to_string(workload) << std::endl;
     for(std::uint32_t t = 1; t <= thread_count; t++) {
-        std::cout << "Thread count: " << t << ": ";
+        std::cout << "Thread count: " << t << ": " << std::endl;
         for(std::uint32_t i = 0; i < iterations; i++) 
         {
-            durations[t*iterations + i] = client.run_transactions(t);;
-            // std::cout << duration << std::endl;
+            durations[(t-1)*iterations + i] = client.run_transactions(t);;
+            // std::cout << i << ": " <<  durations[(t-1)*iterations + i] << std::endl;
         }
         // Calculating the performance
         thread_total_duration = 0;
         for(std::uint32_t i = 0; i < iterations; i++) 
-            thread_total_duration += durations[t*iterations + i];
+            thread_total_duration += durations[(t-1)*iterations + i];
         std::cout << "Avg: " << (thread_total_duration / iterations) << std::endl;
 
         // Writing data to file
