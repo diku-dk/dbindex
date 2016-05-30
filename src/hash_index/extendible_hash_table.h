@@ -17,7 +17,7 @@ namespace dbindex {
 	template<std::uint8_t initial_global_depth>
 	class extendible_hash_table : public abstract_index {
 	private:
-		abstract_hash<hash_value_t> *hash;
+		abstract_hash<hash_value_t>& hash;
 			
 		static const std::uint8_t bucket_entries = 4; //(CACHE_LINE_SIZE - sizeof(std::uint8_t))/sizeof(hash_entry);
 		struct alignas(CACHE_LINE_SIZE) hash_bucket {
@@ -25,27 +25,17 @@ namespace dbindex {
 			std::uint8_t  entry_count;
 			const std::uint32_t original_index;
 
-			std::string *keys;
-			std::string *values;
+			std::vector<std::string> keys;
+			std::vector<std::string> values;
 			boost::shared_mutex local_mutex;
 
 			hash_bucket(std::uint8_t _local_depth, std::uint8_t _bucket_entries, const std::uint32_t _original_index) : local_depth(_local_depth), original_index(_original_index){
-				keys = new std::string[_bucket_entries];
-				values = new std::string[_bucket_entries];
+				keys = std::vector<std::string>{_bucket_entries};
+				values = std::vector<std::string>{_bucket_entries};
 				entry_count = 0;
 			}
-			hash_bucket(const hash_bucket &other) : local_depth(other.local_depth), original_index(other.original_index){
-				keys = new std::string[bucket_entries];
-				values = new std::string[bucket_entries];
-				std::copy(&other.keys[0], &other.keys[bucket_entries], &keys[0]);
-				std::copy(&other.values[0], &other.values[bucket_entries], &values[0]);
-				entry_count = other.entry_count;
-			}
 
-			~hash_bucket() {
-				delete[] keys;
-				delete[] values;
-			}
+			~hash_bucket() {}
 			void clear(){
 				for (std::uint8_t e = 0; e < entry_count; e++) {
 					keys[e] = "";
@@ -76,7 +66,7 @@ namespace dbindex {
 		};
 
 		std::uint8_t global_depth = initial_global_depth;
-		hash_bucket **directory;
+		std::vector<hash_bucket*> directory{directory_size()};
 
 		boost::shared_mutex global_mutex;
 
@@ -88,15 +78,23 @@ namespace dbindex {
 			return r;
 		}
 
-		void create_bucket_and_insert(hash_bucket *bucket, std::vector<hash_bucket*> &buckets_to_insert, std::uint32_t bucket_number, std::string key, std::string value) {
+		// Returns true if all entries ended in one bucket (thus retry), false if a proper splitting was done.
+		bool create_bucket_and_insert(hash_bucket *bucket, std::vector<hash_bucket*> &buckets_to_insert, std::uint32_t bucket_number, std::string key, std::string value) {
+			
+			// std::cout << "!" << std::endl;
+			std::uint8_t ec = bucket->entry_count;
+			// std::cout << "@" << std::endl;
 			// Redistribute entries from bucket
 			// print_extendible_hash_bucket(bucket, bucket_number, false);
 			bucket->local_depth++;
 			bucket->entry_count = 0;
+			// std::cout << "#" << std::endl;
 			std::uint32_t image_number = bucket_number + (1<<(bucket->local_depth-1));
 			hash_bucket *image_bucket = new hash_bucket(bucket->local_depth, bucket_entries, image_number);
-			for (uint8_t i = 0; i < bucket_entries; i++) {
-				if (!((hash->get_hash(bucket->keys[i]) >> (bucket->local_depth-1)) & 1)) { // Original bucket
+			// std::cout << "$" << std::endl;
+
+			for (uint8_t i = 0; i < ec; i++) {
+				if (!((hash.get_hash(bucket->keys[i]) >> (bucket->local_depth-1)) & 1)) { // Original bucket
 					bucket->insert_next(bucket->keys[i], bucket->values[i]);
 				}
 				else { // Image bucket
@@ -105,25 +103,31 @@ namespace dbindex {
 			}
 
 			// Insert new value
-			hash_value_t new_hash_value = hash->get_hash(key);
+			hash_value_t new_hash_value = hash.get_hash(key);
 			if ((!((new_hash_value >> (bucket->local_depth-1)) & 1)) && bucket->entry_count < bucket_entries) { // Insert new in original bucket
 				bucket->insert_next(key, value);
+				buckets_to_insert.push_back(image_bucket);
+				return false;
 			} else if (((new_hash_value >> (bucket->local_depth-1)) & 1) && image_bucket->entry_count < bucket_entries) { // Insert new in image bucket
 				image_bucket->insert_next(key, value);
+				buckets_to_insert.push_back(image_bucket);
+				return false;
 			}
+
 			buckets_to_insert.push_back(image_bucket);
+			return true; // unable to place new value, retry
 		}
 
 		std::uint8_t calc_new_local_depth(hash_bucket *bucket, const hash_value_t new_hash_value, std::uint32_t bucket_number) {
 			// Calculating hash values
 			hash_value_t hash_values[bucket_entries+1];
 			for (std::uint8_t e = 0; e < bucket_entries; e++) {
-				hash_values[e] = hash->get_hash(bucket->keys[e]);
+				hash_values[e] = hash.get_hash(bucket->keys[e]);
 			}
 			hash_values[bucket_entries] = new_hash_value;
 
 			// Checking common digits
-			std::uint8_t new_local_depth = bucket->local_depth;
+			std::uint8_t new_local_depth = 0;
 			std::uint8_t common_digit_nums;
 			do {
 				new_local_depth++;
@@ -134,40 +138,12 @@ namespace dbindex {
 			}
 			while (common_digit_nums == 0 || common_digit_nums == bucket_entries+1);
 
-			// Debugging section
-			// std::cout << "nld: " << (int) new_local_depth << std::endl;
-			if (new_local_depth >= 19) {
-				std::cout << bucket_number << std::endl;
-				// std::cout << "WHAT: " << std::endl;
-				for (std::uint8_t e = 0; e < bucket_entries+1; e++) {
-					std::bitset<32> x(hash_values[e]);
-					std::cout << hash_values[e] << "\t" << x << std::endl;
-				}
-				// std::cout << "old_local_depth: " << (int)bucket->local_depth << std::endl;
-				// std::cout << "new_local_depth: " << (int)new_local_depth <<  std::endl;
-				// print_extendible_hash_bucket(bucket, bucket->original_index, false);
-				new_local_depth = bucket->local_depth;
-				common_digit_nums = 0;
-				do {
-					new_local_depth++;
-					std::cout << "new_local_depth: " << (int)new_local_depth << std::endl;
-					common_digit_nums = 0;
-					for (std::uint8_t e = 0; e < bucket_entries+1; e++) {
-						std::cout << (int)((hash_values[e] >> (new_local_depth-1)) & 1) << std::endl;
-						common_digit_nums += (hash_values[e] >> (new_local_depth-1)) & 1;
-					}
-				}
-				while (common_digit_nums == 0 || common_digit_nums == bucket_entries+1);
-				print_extendible_hash_table(false);
-				// print_extendible_hash_table(true);
-			}
 			return new_local_depth;
 		}
 		void insert_internal_shared(const std::string& key, const std::string& new_value) {
 
 			boost::shared_lock<boost::shared_mutex> global_shared_lock(global_mutex);
-
-			hash_value_t hash_value = hash->get_hash(key);
+			hash_value_t hash_value = hash.get_hash(key);
 			std::uint32_t bucket_number = directory[hash_value & createBitMask(global_depth-1)]->original_index;
 
 			boost::unique_lock<boost::shared_mutex> local_exclusive_lock(directory[bucket_number]->local_mutex);
@@ -178,6 +154,31 @@ namespace dbindex {
 				global_shared_lock.unlock();
 				return;
 			} 
+
+			if (calc_new_local_depth(directory[bucket_number], hash_value, bucket_number) <= global_depth) {
+				std::vector<hash_bucket*> buckets_to_insert;
+				bool try_insert_again = true;
+				//      Not made                      Original bucket overflow                    Image bucket overflow
+				while (try_insert_again) {
+					if (buckets_to_insert.empty() || buckets_to_insert.back()->entry_count == 0) {
+						try_insert_again = create_bucket_and_insert(directory[bucket_number], buckets_to_insert, bucket_number, key, new_value);
+					} else {
+						try_insert_again = create_bucket_and_insert(buckets_to_insert.back(), buckets_to_insert, bucket_number, key, new_value);
+					}
+				}
+				for (typename std::vector<hash_bucket*>::iterator it = buckets_to_insert.begin(); it != buckets_to_insert.end(); ++it) {
+					hash_bucket*  image_bucket   = *it;
+					std::uint32_t ptr_index 	 = image_bucket->original_index;
+					while (ptr_index < directory_size()) { // Update all other pointers with this prefix.
+						directory[ptr_index] = image_bucket;
+						ptr_index += (1<<image_bucket->local_depth);
+					}
+				}
+				local_exclusive_lock.unlock();
+				global_shared_lock.unlock();
+				return;
+			}
+
 			local_exclusive_lock.unlock();
 			global_shared_lock.unlock();
 			return insert_internal_exclusive(key, new_value);
@@ -186,10 +187,9 @@ namespace dbindex {
 			boost::unique_lock<boost::shared_mutex> global_exclusive_lock(global_mutex);
 
 			// Search for free slot
-			hash_value_t hash_value = hash->get_hash(key);
+			hash_value_t hash_value = hash.get_hash(key);
 			std::uint32_t bucket_number = directory[hash_value & createBitMask(global_depth-1)]->original_index;
 
-			std::vector<hash_bucket*> buckets_to_insert;
 
 			if (directory[bucket_number]->entry_count < bucket_entries) {
 				directory[bucket_number]->insert_next(key, new_value);
@@ -197,12 +197,14 @@ namespace dbindex {
 				return;
 			} 
 
+			std::vector<hash_bucket*> buckets_to_insert;
+			bool try_insert_again = true;
 			//      Not made                      Original bucket overflow                    Image bucket overflow
-			while (buckets_to_insert.empty() || !(buckets_to_insert.back()->entry_count) || !(directory[bucket_number]->entry_count)) {
-				if (buckets_to_insert.empty() || !(buckets_to_insert.back()->entry_count)) {
-					create_bucket_and_insert(directory[bucket_number], buckets_to_insert, bucket_number, key, new_value);
+			while (try_insert_again) {
+				if (buckets_to_insert.empty() || buckets_to_insert.back()->entry_count == 0) {
+					try_insert_again = create_bucket_and_insert(directory[bucket_number], buckets_to_insert, bucket_number, key, new_value);
 				} else {
-					create_bucket_and_insert(buckets_to_insert.back(), buckets_to_insert, bucket_number, key, new_value);
+					try_insert_again = create_bucket_and_insert(buckets_to_insert.back(), buckets_to_insert, bucket_number, key, new_value);
 				}
 			}
 			if (buckets_to_insert.back()->local_depth <= global_depth) {
@@ -219,41 +221,24 @@ namespace dbindex {
 			}
 
 			std::uint8_t splits = buckets_to_insert.back()->local_depth - global_depth;
-			// std::cout << "BUCKET amount: " << buckets_to_insert.size() << std::endl;
-			// std::cout << "SS: " << (int)splits << std::endl;
+			size_t old_size = 1 << global_depth;
+			size_t new_size = 1 << (global_depth + splits);
 
-			std::uint32_t old_size = 1 << global_depth;
-			// std::cout << "OS: " << old_size << std::endl;
-			std::uint32_t new_size = 1 << (global_depth + splits);
-			// std::cout << "NS: " << new_size << std::endl;
-
-			// std::cout << "A1" << std::endl;
-			directory = (hash_bucket**) realloc(directory, new_size*sizeof(hash_bucket*));
-			// std::cout << "A" << std::endl;
-			if (!directory) {
-				std::cout << "REALLOC ERROR" << std::endl;
-			}		
-			// std::cout << "B" << std::endl;
+			directory.resize(new_size);
 			for (typename std::vector<hash_bucket*>::iterator it = buckets_to_insert.begin(); it != buckets_to_insert.end(); ++it) {
-				// std::cout << "c" << std::endl;
-				// std::cout << "OS NOW: " << old_size << std::endl;
-				std::copy(&directory[0], &directory[old_size], &directory[old_size]);
-				// std::cout << "d" << std::endl;
-				old_size <<= 1;
-				// std::cout << "e" << std::endl;
-				hash_bucket* image_bucket   = *it;
-				// std::cout << "f" << std::endl;
+				hash_bucket* image_bucket = *it;
+				if (image_bucket->original_index > directory_size()-1) {
+					std::copy_n(directory.begin(), old_size, directory.begin()+old_size);
+					old_size <<= 1;
+				}
 				directory[image_bucket->original_index] = image_bucket;
-				// std::cout << "g" << std::endl;
 			}
-			// std::cout << "h" << std::endl;
 			global_depth += splits;
 			global_exclusive_lock.unlock();
 		}
 
 	public:
-		extendible_hash_table(abstract_hash<hash_value_t> *_hash) : hash(_hash) {
-			directory = (hash_bucket**) malloc(directory_size()*sizeof(hash_bucket*));
+		extendible_hash_table(abstract_hash<hash_value_t>& _hash) : hash(_hash) {
 			for (std::uint8_t b = 0; b < directory_size(); b++) {
 				hash_bucket *bucket = new hash_bucket(global_depth, bucket_entries, b);
 				directory[b] = bucket;
@@ -277,7 +262,6 @@ namespace dbindex {
 					directory[b] = NULL;
 				}
 			}
-			free(directory);
 			global_exclusive_lock.unlock();
 		}
 
@@ -314,11 +298,10 @@ namespace dbindex {
 			for (std::uint8_t j = 0; j < bucket_entries; j++)
 			{
 				if (!exclusive || bucket->original_index == i){
-					std::uint32_t value = atoi(bucket->keys[j].c_str());
 					if (j >= bucket->entry_count)
 						text += "     | ";
 					else
-						text += ((value < 10 ? "   " : (value < 100 ? "  " : (value < 1000 ? " " : ""))) + bucket->keys[j]) + " | ";
+						text += ((bucket->keys[j].length() < 2 ? "   " : (bucket->keys[j].length() < 3 ? "  " : (bucket->keys[j].length() < 4 ? " " : ""))) + bucket->keys[j]) + " | ";
 				}
 				else 
 					text += "     | ";
@@ -328,7 +311,7 @@ namespace dbindex {
 		}
 
 		bool get(const std::string& key, std::string& value) override {
-			hash_value_t hash_value = hash->get_hash(key);
+			hash_value_t hash_value = hash.get_hash(key);
 			
 			// Take global lock shared;
 			boost::shared_lock<boost::shared_mutex> global_shared_lock(global_mutex);
@@ -355,7 +338,7 @@ namespace dbindex {
 		
 		// Returns previous value, if found, -1 otherwise
 		void update(const std::string& key, const std::string& new_value) override {
-			hash_value_t hash_value = hash->get_hash(key);
+			hash_value_t hash_value = hash.get_hash(key);
 
 			boost::shared_lock<boost::shared_mutex> global_shared_lock(global_mutex);
 			std::uint32_t bucket_number = hash_value & (directory_size()-1);
@@ -373,7 +356,7 @@ namespace dbindex {
 
 		// Returns deleted value, if found, -1 otherwise
 		void remove(const std::string& key) override {
-			hash_value_t hash_value = hash->get_hash(key);
+			hash_value_t hash_value = hash.get_hash(key);
 			boost::shared_lock<boost::shared_mutex> global_shared_lock(global_mutex);
 			std::uint32_t bucket_number = hash_value & (directory_size()-1);
 			boost::unique_lock<boost::shared_mutex> local_exclusive_lock(directory[bucket_number]->local_mutex);
@@ -450,9 +433,6 @@ namespace dbindex {
 		}
 		std::uint8_t get_bucket_entries() {
 			return bucket_entries;
-		}
-		hash_bucket **get_directory() {
-			return directory;
 		}
 
 		size_t directory_size() {

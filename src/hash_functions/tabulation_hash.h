@@ -32,6 +32,7 @@
 #include <climits>
 #include <cstring>
 #include <cstdint>
+#include <iostream>
 #include <algorithm>
 #include <memory>
 #include "abstract_hash.h"

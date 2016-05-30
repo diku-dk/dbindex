@@ -1,12 +1,15 @@
 #include <string>
 #include <chrono>
+#include <fstream>
 #include <iostream>
 
+#include "../src/hash_functions/abstract_hash.h"
 #include "../src/hash_functions/mod_hash.h"
 #include "../src/hash_functions/mult_shift_hash.h"
 #include "../src/hash_functions/tabulation_hash.h"
 #include "../src/hash_functions/murmur_hash_32.h"
 #include "../src/hash_index/array_hash_table.h"
+#include "../src/hash_index/extendible_hash_table.h"
 #include "../src/benchmarks/ycsb/client.h"
 #include "../src/benchmarks/ycsb/core_workloads.h"
 
@@ -48,60 +51,128 @@ std::string workload_to_string(ycsb::workload_properties workload_x) {
     return "workload_a";
 }
 
-void test_workload_a(std::uint8_t thread_count, std::string workload_string) {
+void test_workload_a(std::uint8_t thread_count, std::string workload_string, std::uint8_t hash_func_num, std::uint8_t hash_index_num) {
     using namespace std::chrono;
 
     constexpr size_t directory_size = 1<<10;
+    constexpr size_t initial_global_depht = 2;
     constexpr std::uint32_t mod_value = 1<<31;
-    constexpr std::uint32_t MAX_KEY_LEN_VAL = 64;
+    constexpr std::uint32_t MAX_KEY_LEN_VAL = 14;
 
     ycsb::workload_properties workload = parse_workload_string(workload_string);
-    // const ycsb::workload_properties workload_a = {
-    //     100000, 100000, 
-    //     0.5, 0.5, 0, 0, 0, 
-    //     ycsb::distribution_type::ZIPFIAN, ycsb::distribution_type::UNUSED, 
-    //     0, 100
-    // };
-
-    dbindex::mod_hash<hash_value_t, mod_value> mod_hash              = dbindex::mod_hash<hash_value_t, mod_value>();
-    dbindex::mult_shift_hash<hash_value_t> mult_hash                 = dbindex::mult_shift_hash<hash_value_t>();
-    dbindex::murmur_hash_32<hash_value_t> murmur_hash                = dbindex::murmur_hash_32<hash_value_t>();
-    dbindex::tabulation_hash<hash_value_t, MAX_KEY_LEN_VAL> tab_hash = dbindex::tabulation_hash<hash_value_t, MAX_KEY_LEN_VAL>();
-
-    // dbindex::array_hash_table<directory_size> hash_table = dbindex::array_hash_table<directory_size>(&mod_hash); std::cout << "Using mod_hash" << std::endl;
-    // dbindex::array_hash_table<directory_size> hash_table = dbindex::array_hash_table<directory_size>(&mult_hash); std::cout << "Using mult_hash" << std::endl;
-    // dbindex::array_hash_table<directory_size> hash_table = dbindex::array_hash_table<directory_size>(&murmur_hash); std::cout << "Using murmur_hash" << std::endl;
-    dbindex::array_hash_table<directory_size> hash_table = dbindex::array_hash_table<directory_size>(&tab_hash); std::cout << "Using tab_hash" << std::endl;
-
-    ycsb::client client(hash_table, workload, thread_count);
 
 
+    dbindex::abstract_hash<std::uint32_t>* hash;
+    dbindex::abstract_index* hash_table;
+
+    std::string hash_func_string;
+    std::string hash_index_string;
+
+    switch (hash_func_num) {
+    case 0:
+        hash_func_string = "mod_hash";
+        hash = new dbindex::mod_hash<hash_value_t, mod_value>();
+        break;
+    case 1:
+        hash_func_string = "murmur_hash_32";
+        hash = new dbindex::murmur_hash_32<hash_value_t>();
+        break;
+    case 2:
+        hash_func_string = "tabulation_hash";
+        hash = new dbindex::tabulation_hash<hash_value_t, MAX_KEY_LEN_VAL>();
+        break;
+    // case 3:
+        // hash = new dbindex::mult_shift_hash<hash_value_t> mult();
+        // break;
+    default:
+        std::cout << "Unknown hash_func_num: \"" << hash_func_num << "\"." << std::endl;
+        hash_func_string = "tabulation_hash";
+        hash = new dbindex::tabulation_hash<hash_value_t, MAX_KEY_LEN_VAL>();
+        break;
+    }
+
+    switch(hash_index_num) {
+    case 0:
+    hash_index_string = "array_hash_table";
+        hash_table = new dbindex::array_hash_table<directory_size>(*hash); 
+        break;
+    case 1:
+    hash_index_string = "extendible_hash_table";
+        hash_table = new dbindex::extendible_hash_table<initial_global_depht>(*hash);
+        break;
+    default:
+        std::cout << "Unknown hash_index_num: \"" << hash_index_num << "\"." << std::endl;
+        hash_index_string = "extendible_hash_table";
+        hash_table = new dbindex::extendible_hash_table<initial_global_depht>(*hash);
+        break;
+    }
+    std::cout << "Using " << hash_func_string << " and " << hash_index_string << std::endl;
+
+    ycsb::client client(*hash_table, workload, thread_count);
     client.run_build_records(thread_count);
+
     // Calculating the hashing
-    std::uint32_t total_duration;
-    std::uint32_t duration;
     std::uint32_t iterations = 50;
 
+    std::uint32_t thread_total_duration;
+    std::vector<std::uint32_t> durations{iterations*thread_count};
+
+
+        // Opening Data File
+    std::ofstream out_file;
+    std::string path = "results/" + hash_func_string + "_" + hash_index_string + ".txt";
+    std::cout << path << std::endl;
+    out_file.open (path);
+    out_file.clear();
+    if (!out_file.is_open()) {
+        std::cout << "Data file isn't open." << std::endl;
+        return;
+    }
+
+
+        // Running experiments 
     std::cout << "Running benchmark with " << workload_to_string(workload) << std::endl;
-    for(std::uint32_t t = 1; t <= 16; t++) {
+    for(std::uint32_t t = 1; t <= thread_count; t++) {
         std::cout << "Thread count: " << t << ": ";
-        total_duration = 0;
-        for(std::uint32_t j = 0; j < iterations; j++) 
+        for(std::uint32_t i = 0; i < iterations; i++) 
         {
-            duration = client.run_transactions(t);
-            total_duration += duration;
+            durations[t*iterations + i] = client.run_transactions(t);;
             // std::cout << duration << std::endl;
         }
-        std::cout << "Avg: " << (total_duration / iterations) << std::endl;
+        // Calculating the performance
+        thread_total_duration = 0;
+        for(std::uint32_t i = 0; i < iterations; i++) 
+            thread_total_duration += durations[t*iterations + i];
+        std::cout << "Avg: " << (thread_total_duration / iterations) << std::endl;
+
+        // Writing data to file
+        out_file << t << "\t" << (thread_total_duration / iterations) << "\n";
     }
+
+    out_file.flush();
+    if (out_file.fail())
+      std::cout << "Something failed" << std::endl;
+    out_file.close();
+
+    delete hash;
+    delete hash_table;
 }
 
 int main(int argc, char *argv[]) {
     std::string workload_string = "workload_a";
+    std::uint8_t hash_func_num  = 2;
+    std::uint8_t hash_index_num = 0;
+    std::uint8_t thread_count   = 4;
 
     if (argc > 1)
         workload_string = argv[1];
 
+    if (argc > 2)
+        hash_func_num = (std::uint8_t)(argv[2][0]-'0');
 
-    test_workload_a(1, workload_string);
+    if (argc > 3)
+        hash_index_num = (std::uint8_t)(argv[3][0]-'0');
+
+
+    test_workload_a(thread_count, workload_string, hash_func_num, hash_index_num);
 }

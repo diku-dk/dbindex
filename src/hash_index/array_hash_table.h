@@ -19,7 +19,7 @@ namespace dbindex {
 	template<std::uint32_t directory_size>
 	class array_hash_table : public abstract_index {
 	private:
-		abstract_hash<hash_value_t> *hash;
+		abstract_hash<hash_value_t>& hash;
 			
 		struct alignas(CACHE_LINE_SIZE) hash_bucket {
 
@@ -47,16 +47,14 @@ namespace dbindex {
 			}
 		};
 
-		hash_bucket **directory;
-		boost::shared_mutex *bucket_mutexes;
+		std::vector<hash_bucket*> directory{directory_size};
+		std::vector<boost::shared_mutex> bucket_mutexes{directory_size};
 
 	public:
-		array_hash_table(abstract_hash<hash_value_t> *_hash) : hash(_hash) {
-			directory = (hash_bucket**) malloc(directory_size*sizeof(hash_bucket*));
+		array_hash_table(abstract_hash<hash_value_t>& _hash) : hash(_hash) {
 			for (std::uint32_t b = 0; b < directory_size; b++) {
 				directory[b] = NULL;
 			}
-			bucket_mutexes = new boost::shared_mutex[directory_size];
 		}
 			
 		~array_hash_table() {
@@ -68,8 +66,6 @@ namespace dbindex {
 					directory[b] = NULL;
 				}
 			}
-			free(directory);
-			delete[] bucket_mutexes;
 		}
 		std::string align_int_1000(std::uint32_t input) { 
 			return (input < 10 ? "   " : (input < 100 ? "  " : (input < 1000 ? " " : ""))) + std::to_string(input);
@@ -103,7 +99,7 @@ namespace dbindex {
 		}
 
 		bool get(const std::string& key, std::string& value) override {
-			hash_value_t hash_value = hash->get_hash(key);
+			hash_value_t hash_value = hash.get_hash(key);
 			std::uint32_t bucket_number = hash_value & (directory_size-1);
 
 			boost::shared_lock<boost::shared_mutex> local_shared_lock(bucket_mutexes[bucket_number]);
@@ -121,7 +117,7 @@ namespace dbindex {
 		}
 
 		void insert(const std::string& key, const std::string& new_value) override {
-			hash_value_t hash_value = hash->get_hash(key);
+			hash_value_t hash_value = hash.get_hash(key);
 			std::uint32_t bucket_number = hash_value & (directory_size-1);
 
 			boost::unique_lock<boost::shared_mutex> local_exclusive_lock(bucket_mutexes[bucket_number]);
@@ -136,7 +132,7 @@ namespace dbindex {
 		}
 
 		void update(const std::string& key, const std::string& new_value) override {
-			hash_value_t hash_value = hash->get_hash(key);
+			hash_value_t hash_value = hash.get_hash(key);
 			std::uint32_t bucket_number = hash_value & (directory_size-1);
 			
 			boost::unique_lock<boost::shared_mutex> local_exclusive_lock(bucket_mutexes[bucket_number]);
@@ -153,7 +149,7 @@ namespace dbindex {
 
 		// Returns deleted value, if found, -1 otherwise
 		void remove(const std::string& key) override {
-			hash_value_t hash_value = hash->get_hash(key);
+			hash_value_t hash_value = hash.get_hash(key);
 			std::uint32_t bucket_number = hash_value & (directory_size-1);
 			boost::unique_lock<boost::shared_mutex> local_exclusive_lock(bucket_mutexes[bucket_number]);
 			if (directory[bucket_number]) {
@@ -186,7 +182,7 @@ namespace dbindex {
 			// Apply push op
 			while(!pri_queue.empty()) {
 				hash_entry current = pri_queue.top();
-				std::string key     = std::get<0>(current);
+				std::string key   = std::get<0>(current);
 				std::string value = std::get<1>(current);
 				const char* keyp = key.c_str();
 				if (!apo.invoke(keyp, key.length(), value)) {
@@ -215,7 +211,7 @@ namespace dbindex {
 			// Apply push op
 			while(!pri_queue.empty()) {
 				hash_entry current = pri_queue.top();
-				std::string key     = std::get<0>(current);
+				std::string key   = std::get<0>(current);
 				std::string value = std::get<1>(current);
 				const char* keyp = key.c_str();
 				if (!apo.invoke(keyp, key.length(), value)) {
@@ -225,13 +221,10 @@ namespace dbindex {
 			}
 		}
 
-		hash_bucket **get_directory() {
-			return directory;
-		}
-
 		std::uint32_t get_directory_size() {
 			return directory_size;
 		}
+
 		size_t size() {
 			size_t total_entry_count = 0;
 			for (std::uint32_t i = 0; i < directory_size; i++) {

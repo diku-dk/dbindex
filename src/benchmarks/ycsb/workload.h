@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <iostream>
 
 #include "Generators/abstract_generator.h"
 #include "Generators/discrete_generator.h"
@@ -21,8 +22,8 @@ class workload {
   public:
     void init(const workload_properties& p);
     
-    void do_insert(dbindex::abstract_index* hash_index);
-    void do_transaction(dbindex::abstract_index* hash_index);
+    void do_insert(dbindex::abstract_index& hash_index);
+    void do_transaction(dbindex::abstract_index& hash_index);
 
     void build_value(std::string& value);
     void build_max_value(std::string& value);
@@ -60,11 +61,11 @@ class workload {
 
     limit_op limit_push_op;
 
-    void do_transaction_read(dbindex::abstract_index* hash_index);
-    void do_transaction_read_modify_write(dbindex::abstract_index* hash_index);
-    void do_transaction_range_scan(dbindex::abstract_index* hash_index);
-    void do_transaction_update(dbindex::abstract_index* hash_index);
-    void do_transaction_insert(dbindex::abstract_index* hash_index);
+    void do_transaction_read(dbindex::abstract_index& hash_index);
+    void do_transaction_read_modify_write(dbindex::abstract_index& hash_index);
+    void do_transaction_range_scan(dbindex::abstract_index& hash_index);
+    void do_transaction_update(dbindex::abstract_index& hash_index);
+    void do_transaction_insert(dbindex::abstract_index& hash_index);
 };
 
 inline std::string workload::next_sequence_key() {
@@ -80,16 +81,18 @@ inline std::string workload::next_transaction_key() {
 }
 
 
-inline void workload::do_insert(dbindex::abstract_index* hash_index) {
+inline void workload::do_insert(dbindex::abstract_index& hash_index) {
     std::string key = next_sequence_key();
+    // std::cout << "Key: " << key << std::endl;
     std::string value;
     
     build_value(value);
-    hash_index->insert(key, value);
+    // std::cout << "Value: " << value << std::endl;
+    hash_index.insert(key, value);
 }
 
 
-inline void workload::do_transaction(dbindex::abstract_index* hash_index) {
+inline void workload::do_transaction(dbindex::abstract_index& hash_index) {
     switch (next_operation()) {
         case READ:
             do_transaction_read(hash_index);
@@ -111,47 +114,47 @@ inline void workload::do_transaction(dbindex::abstract_index* hash_index) {
     }
 }
 
-inline void workload::do_transaction_read(dbindex::abstract_index* hash_index) {
+inline void workload::do_transaction_read(dbindex::abstract_index& hash_index) {
     const std::string& key = next_transaction_key();
     std::string value;
 
-    hash_index->get(key, value);
+    hash_index.get(key, value);
 }
 
 
-inline void workload::do_transaction_insert(dbindex::abstract_index* hash_index) {
+inline void workload::do_transaction_insert(dbindex::abstract_index& hash_index) {
     const std::string& key = next_transaction_key();
     std::string value;
 
     build_value(value);
-    hash_index->insert(key, value);
+    hash_index.insert(key, value);
 } 
 
-inline void workload::do_transaction_read_modify_write(dbindex::abstract_index* hash_index) {
+inline void workload::do_transaction_read_modify_write(dbindex::abstract_index& hash_index) {
     const std::string& key = next_transaction_key();
     std::string value;
     
-    hash_index->get(key, value);
+    hash_index.get(key, value);
     build_value(value);
-    hash_index->update(key, value);
+    hash_index.update(key, value);
 }
 
-inline void workload::do_transaction_update(dbindex::abstract_index* hash_index) {
+inline void workload::do_transaction_update(dbindex::abstract_index& hash_index) {
     const std::string& key = next_transaction_key();
     std::string value;
 
     build_value(value);
-    hash_index->update(key, value);
+    hash_index.update(key, value);
 }
 
-inline void workload::do_transaction_range_scan(dbindex::abstract_index* hash_index) {
+inline void workload::do_transaction_range_scan(dbindex::abstract_index& hash_index) {
     const std::string& start_key = next_transaction_key();
     std::string end_key;
     build_max_value(end_key);
 
     limit_push_op.set_len(next_scan_length());
     
-    hash_index->range_scan(start_key, &end_key, limit_push_op);
+    hash_index.range_scan(start_key, &end_key, limit_push_op);
 }
 
 }

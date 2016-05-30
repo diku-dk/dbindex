@@ -68,11 +68,15 @@ void workload::init(const workload_properties& p) {
 }
 
 void workload::build_value(std::string& value) {
-        value = std::string(value_len_generator->next(), utils::random_print_char());
+    hash_value_t string_len = value_len_generator->next();
+    value = "";
+    for (hash_value_t c = 0; c < string_len; c++) {
+        value += utils::random_print_char();
+    }
 }
 
 void workload::build_max_value(std::string& value) {
-        value = std::string(max_value_len+1, (char)0xFF);
+    value = std::string(max_value_len+1, (char)0xFF);
 }
 
 }
