@@ -112,7 +112,7 @@ void test_workload_a(std::uint8_t thread_count, std::string workload_string, std
     client.run_build_records(thread_count);
 
     // Calculating the hashing
-    std::uint32_t iterations = 5;
+    std::uint32_t iterations = 25;
 
     std::uint32_t thread_total_duration;
     std::uint32_t durations[iterations*thread_count];
@@ -160,7 +160,7 @@ int main(int argc, char *argv[]) {
     std::string workload_string = "workload_a";
     std::uint8_t hash_func_num  = 2;
     std::uint8_t hash_index_num = 0;
-    std::uint8_t thread_count   = 4;
+    std::uint8_t thread_count   = 16;
 
     if (argc > 1)
         workload_string = argv[1];
