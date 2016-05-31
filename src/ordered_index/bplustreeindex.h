@@ -35,7 +35,8 @@
 namespace dbindex {
     namespace bplustree {
 
-        struct node; //Forward declare to break cyclic dependency
+        struct node;
+        //Forward declare to break cyclic dependency
 
         constexpr std::size_t keys_per_node = 10;
 
@@ -48,7 +49,7 @@ namespace dbindex {
         struct node {
             node_val values[keys_per_node];
             std::size_t num_entries { 0 };
-            node* right_child_node {nullptr};
+            node* right_child_node { nullptr };
             node* prev { nullptr };
             node* next { nullptr };
             bool is_leaf_node { false };
@@ -58,12 +59,27 @@ namespace dbindex {
         class bplustreeindex: public abstract_index {
             node* root_node { nullptr };
 
-            node* find(const std::string& key, node* a_node);
+            node* find_leaf_node_with_key(const std::string& key, node* a_node);
 
-            inline int bytecomparer(const std::string& key1, const std::string& key2) {
+            void scan_till_key(node* leaf_node, size_t index_in_leaf_node,
+                    abstract_push_op&, const std::string* end_key, bool reverse_scan = false);
+
+            inline int bytecomparer(const std::string& key1,
+                    const std::string& key2) {
                 auto min_key_length =
                         key1.size() < key2.size() ? key1.size() : key2.size();
                 return std::memcmp(key1.data(), key2.data(), min_key_length);
+            }
+
+            inline int bytecomparer(const std::string& key1,
+                    const std::string* key2) {
+                if (key2 == nullptr) {
+                    //Nullptr represents last key present
+                    return -1;
+                }
+                auto min_key_length =
+                        key1.size() < key2->size() ? key1.size() : key2->size();
+                return std::memcmp(key1.data(), key2->data(), min_key_length);
             }
 
         public:
