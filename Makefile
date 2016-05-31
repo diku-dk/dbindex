@@ -22,31 +22,19 @@ rebuild : clean all
 
 $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cc
 	@mkdir -p $(@D)
-# @echo "OBJ_DIR"
-# @echo $@
-# @echo $^
 	$(CXX) $(CXXFLAGS) -c $< -o $@
-# @echo 
 
 $(OBJ_DIR)/%/%.o : $(SRC_DIR)/%/%.cc
 	@mkdir -p $(@D)
-# @echo "obj_dir2"
 	$(CXX) $(CXXFLAGS) -c $< -o $@
-# @echo 
 
 $(BUILD_DIR)/benchmarks/%.o : $(BENCHMARK_SRC)/%.cc $(BASIC_OBJS)
 	@mkdir -p $(@D)
-# @echo "bench_dir"
 	$(CXX) $(CXXFLAGS) -c $< -o $@ 
-# @echo 
 
-$(BUILD_DIR)/test/% : $(TEST_DIR)/%.cc $(BASIC_OBJS)
+$(BUILD_DIR)/test/% : $(TEST_DIR)/%.cc $(BASIC_OBJS) $(BENCHMARK_OBJS)
 	@mkdir -p $(@D)
-# @echo "TEST_DIR"
-# @echo $@
-# @echo $^
 	$(CXX) $(CXXFLAGS) -DNUM_TABLES_DEF=$(NUM_TABLES) -DNUM_THREADS_DEF=$(NUM_THREADS) $< -o $@ $(LDFLAGS) $(LDTESTFLAG) $(BASIC_OBJS) $(BENCHMARK_OBJS)
-# @echo 
 
 .PHONY : check clean rebuild
 
