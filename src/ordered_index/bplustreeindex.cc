@@ -31,62 +31,59 @@
 
 #include "../util/exception.h"
 
-bool dbindex::bplustree::bplustreeindex::get(const std::string& key,
-        std::string& value) {
-    auto cur_node = root_node;
-    while (cur_node != nullptr) {
-        for (auto i = 0; i < cur_node->num_entries; i++) {
-            auto& a_node_element = cur_node->values[i];
-            auto comparison_result = bytecomparer(key, a_node_element.key);
-            if (comparison_result < 0) {
-                if (cur_node->is_leaf_node) {
-                    return false;
-                } else {
-                    cur_node = a_node_element.left_child_node;
-                }
-            } else if (comparison_result == 0) {
-                if (cur_node->is_leaf_node) {
-                    //Found copy and return
-                    value.resize(a_node_element.value.size());
-                    std::memcpy(value.data, a_node_element.value.data(),
-                            a_node_element.value.size());
-                    return true;
-                }
-            }
-            if (i == cur_node->num_entries) {
-                cur_node = cur_node->right_child_node;
-            }
-        }
+/**
+ * Returns the leaf node that can contain the value
+ */
+dbindex::bplustree::node* dbindex::bplustree::bplustreeindex::find_leaf_node_with_key(
+        const std::string& key, node* start_node) {
+    if (start_node == nullptr || start_node->is_leaf_node) {
+        return start_node;
     }
 
+    for (std::size_t i = 0; i < start_node->num_entries; i++) {
+        auto comparison_result = bytecomparer(key, start_node->values[i].key);
+        if (comparison_result < 0) {
+            //Look at the left subtree
+            return find_leaf_node_with_key(key,
+                    start_node->values[i].left_child_node);
+        }
+    }
+    //Did not find it in the left child entries per node_val must look at the rightmost entry
+    return find_leaf_node_with_key(key, start_node->right_child_node);
+}
+
+bool dbindex::bplustree::bplustreeindex::get(const std::string& key,
+        std::string& value) {
+    auto leaf_node_with_key = find_leaf_node_with_key(key, root_node);
+    if (leaf_node_with_key == nullptr) {
+        return false;
+    }
+
+    for (std::size_t i = 0; i < leaf_node_with_key->num_entries; i++) {
+        auto& target_element = leaf_node_with_key->values[i];
+        auto comparison_result = bytecomparer(key, target_element.key);
+        if (comparison_result == 0) {
+            //Found copy and return
+            value.assign(target_element.value);
+            return true;
+        }
+    }
     return false;
 }
 
 void dbindex::bplustree::bplustreeindex::update(const std::string& key,
         const std::string& value) {
-    auto cur_node = root_node;
-    while (cur_node != nullptr) {
-        for (auto i = 0; i < cur_node->num_entries; i++) {
-            auto& a_node_element = cur_node->values[i];
-            auto comparison_result = bytecomparer(key, a_node_element.key);
-            if (comparison_result < 0) {
-                if (cur_node->is_leaf_node) {
-                    throw std::invalid_argument("Key not found");
-                } else {
-                    cur_node = a_node_element.left_child_node;
-                }
-            } else if (comparison_result == 0) {
-                if (cur_node->is_leaf_node) {
-                    //Found copy and return
-                    a_node_element.value.resize(value.size());
-                    std::memcpy(a_node_element.value.data, value.data(),
-                            value.size());
-                    return;
-                }
-            }
-            if (i == cur_node->num_entries) {
-                cur_node = cur_node->right_child_node;
-            }
+    auto leaf_node_with_key = find_leaf_node_with_key(key, root_node);
+    if (leaf_node_with_key == nullptr) {
+        throw std::invalid_argument("Key not found");
+    }
+
+    for (std::size_t i = 0; i < leaf_node_with_key->num_entries; i++) {
+        auto& target_element = leaf_node_with_key->values[i];
+        auto comparison_result = bytecomparer(key, target_element.key);
+        if (comparison_result == 0) {
+            target_element.value.assign(value);
+            return;
         }
     }
     throw std::invalid_argument("Key not found");
@@ -94,23 +91,92 @@ void dbindex::bplustree::bplustreeindex::update(const std::string& key,
 
 void dbindex::bplustree::bplustreeindex::insert(const std::string& key,
         const std::string& value) {
-    auto a_node = find(key, root_node);
     throw util::not_implemented_exception();
 }
 
 void dbindex::bplustree::bplustreeindex::remove(const std::string& key) {
-    throw util::not_implemented_exception();
+    std::string empty_value { "" };
+    update(key, empty_value);
+}
+
+void dbindex::bplustree::bplustreeindex::scan_till_key(node* cur_leaf_node,
+        size_t index_in_leaf_node, abstract_push_op& op,
+        const std::string* end_key, bool reverse_scan) {
+    size_t step_by = reverse_scan ? -1 : 1;
+
+    while (cur_leaf_node != nullptr) {
+        //Simulate both forward and backward loop with step_by
+        for (std::size_t i = index_in_leaf_node;
+                i < cur_leaf_node->num_entries && i >= 0; i += step_by) {
+            auto& target_element = cur_leaf_node->values[i];
+            auto comparison_result = bytecomparer(target_element.value,
+                    end_key);
+            if (reverse_scan) {
+                if (comparison_result < 0) {
+                    return;
+                }
+            } else {
+                if (comparison_result > 0) {
+                    return;
+                }
+            }
+            if (!op.invoke(target_element.key.data(), target_element.key.size(),
+                    target_element.value)) {
+                //Terminate scan
+                return;
+            }
+        }
+        //Get to the next leaf node
+        if (reverse_scan) {
+            cur_leaf_node = cur_leaf_node->prev;
+            index_in_leaf_node = cur_leaf_node->num_entries - 1;
+        } else {
+            cur_leaf_node = cur_leaf_node->next;
+            index_in_leaf_node = 0;
+        }
+    }
 }
 
 void dbindex::bplustree::bplustreeindex::range_scan(
         const std::string& start_key, const std::string* end_key,
         abstract_push_op& op) {
-    throw util::not_implemented_exception();
+    auto leaf_node_with_key = find_leaf_node_with_key(start_key, root_node);
+
+    if (leaf_node_with_key == nullptr) {
+        return;
+    }
+
+    while (leaf_node_with_key != nullptr) {
+        for (std::size_t i = 0; i < leaf_node_with_key->num_entries; i++) {
+            auto& cur_element = leaf_node_with_key->values[i];
+            auto comparison_result = bytecomparer(start_key, cur_element.key);
+            if (comparison_result >= 0) {
+                scan_till_key(leaf_node_with_key, i, op, end_key);
+                return;
+            }
+        }
+    }
 }
 
 void dbindex::bplustree::bplustreeindex::reverse_range_scan(
         const std::string& start_key, const std::string* end_key,
         abstract_push_op& op) {
-    throw util::not_implemented_exception();
+    auto leaf_node_with_key = find_leaf_node_with_key(start_key, root_node);
+
+    if (leaf_node_with_key == nullptr) {
+        return;
+    }
+
+    while (leaf_node_with_key != nullptr) {
+        for (std::size_t i = leaf_node_with_key->num_entries - 1; i >= 0; i--) {
+            auto& cur_element = leaf_node_with_key->values[i];
+            auto comparison_result = bytecomparer(cur_element.key, start_key);
+            if (comparison_result <= 0) {
+                scan_till_key(leaf_node_with_key, i, op, end_key);
+                return;
+            }
+        }
+    }
+
 }
 
