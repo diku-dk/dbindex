@@ -74,7 +74,7 @@ void test_workload_a(std::uint8_t thread_count, std::string workload_string, std
         hash = new dbindex::mod_hash<hash_value_t, mod_value>();
         break;
     case 1:
-        hash_func_string = "murmur_hash_32";
+        hash_func_string = "murmur_hash";
         hash = new dbindex::murmur_hash_32<hash_value_t>();
         break;
     case 2:
@@ -93,11 +93,11 @@ void test_workload_a(std::uint8_t thread_count, std::string workload_string, std
 
     switch(hash_index_num) {
     case 0:
-    hash_index_string = "array_hash_table";
+        hash_index_string = "array_hash_table";
         hash_table = new dbindex::array_hash_table<directory_size>(*hash); 
         break;
     case 1:
-    hash_index_string = "extendible_hash_table";
+        hash_index_string = "extendible_hash_table";
         hash_table = new dbindex::extendible_hash_table<initial_global_depht>(*hash);
         break;
     default:
@@ -109,14 +109,15 @@ void test_workload_a(std::uint8_t thread_count, std::string workload_string, std
     std::cout << "Using " << hash_func_string << " and " << hash_index_string << std::endl;
 
     ycsb::client client(*hash_table, workload, thread_count);
-    client.run_build_records(thread_count);
-
+    client.run_build_records(1);
+    std::cout << "Records built" << std::endl;
     // Calculating the hashing
     std::uint32_t iterations = 25;
 
     std::uint32_t thread_total_duration;
     std::uint32_t durations[iterations*thread_count];
 
+    std::cout << "Opening file" << std::endl;
         // Opening Data File
     std::ofstream out_file;
     std::string path = "results/" + hash_func_string + "_" + hash_index_string + "_" + workload_string + ".txt";
@@ -127,6 +128,7 @@ void test_workload_a(std::uint8_t thread_count, std::string workload_string, std
         std::cout << "Data file isn't open." << std::endl;
         return;
     }
+    std::cout << "File opened" << std::endl;
 
         // Running experiments 
     std::cout << "Running benchmark with " << workload_to_string(workload) << std::endl;
@@ -145,15 +147,15 @@ void test_workload_a(std::uint8_t thread_count, std::string workload_string, std
 
         // Writing data to file
         out_file << t << "\t" << (thread_total_duration / iterations) << "\n";
+        std::cout << "Data written" << std::endl;
     }
-
     out_file.flush();
     if (out_file.fail())
       std::cout << "Something failed" << std::endl;
     out_file.close();
 
-    delete hash;
-    delete hash_table;
+    if (hash) delete hash;
+    if (hash_table) delete hash_table;
 }
 
 int main(int argc, char *argv[]) {

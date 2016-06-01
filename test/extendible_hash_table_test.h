@@ -246,6 +246,7 @@ namespace dbindex {
 			for(std::uint32_t t = 0; t < num_threads; t++) {
 				threads[t].join();
 			}
+			std::cout << hash_table.size() << ", " << num_threads*amount << std::endl;
 			CPPUNIT_ASSERT(hash_table.size() == num_threads*amount);
 		}
 
@@ -276,29 +277,29 @@ namespace dbindex {
 		static CppUnit::Test *suite()
 		{
 			CppUnit::TestSuite *suite_of_tests = new CppUnit::TestSuite( "extendible_hash_table_suite" );
-			suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
-            	           "test_insert",
-            	           	&extendible_hash_table_test::test_insert ) );
-			suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
-                	       "test_delete",
-                    	   &extendible_hash_table_test::test_delete ) );
-			suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
-                	       "test_update",
-                    	   &extendible_hash_table_test::test_update ) );
+			// suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
+   //          	           "test_insert",
+   //          	           	&extendible_hash_table_test::test_insert ) );
+			// suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
+   //              	       "test_delete",
+   //                  	   &extendible_hash_table_test::test_delete ) );
+			// suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
+   //              	       "test_update",
+   //                  	   &extendible_hash_table_test::test_update ) );
 
-			suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
-                	       "test_scan",
-                    	   &extendible_hash_table_test::test_scan ) );
-			suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
-                	       "test_scan_reverse",
-                    	   &extendible_hash_table_test::test_scan_reverse ) );
+			// suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
+   //              	       "test_scan",
+   //                  	   &extendible_hash_table_test::test_scan ) );
+			// suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
+   //              	       "test_scan_reverse",
+   //                  	   &extendible_hash_table_test::test_scan_reverse ) );
 
-			suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
-                       		"test_split",
-                       		&extendible_hash_table_test::test_split ) );
-			suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
-                       		"test_double_split",
-                       		&extendible_hash_table_test::test_double_split ) );
+			// suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
+   //                     		"test_split",
+   //                     		&extendible_hash_table_test::test_split ) );
+			// suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
+   //                     		"test_double_split",
+   //                     		&extendible_hash_table_test::test_double_split ) );
 
 			// suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
    //                     		"test_insert_delete_many",
@@ -307,10 +308,10 @@ namespace dbindex {
 			// suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
    //                     		"test_concurrent_different",
    //                     		&extendible_hash_table_test::test_concurrent_different ) );
-			// // for (std::uint32_t i = 0; i < 200; i++) {
-			// suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
-   //                     		"test_concurrent_all",
-   //                     		&extendible_hash_table_test::test_concurrent_all ) );
+			// for (std::uint32_t i = 0; i < 200; i++) {
+			suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
+                       		"test_concurrent_all",
+                       		&extendible_hash_table_test::test_concurrent_all ) );
 		// }
 			// suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
    //                     		"test_spec",

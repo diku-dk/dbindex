@@ -82,13 +82,19 @@ inline std::string workload::next_transaction_key() {
 
 
 inline void workload::do_insert(dbindex::abstract_index& hash_index) {
+    // std::cout << "start" << std::endl;
     std::string key = next_sequence_key();
+    // std::cout << "key found" << std::endl;
     // std::cout << "Key: " << key << std::endl;
     std::string value;
     
+
+    // std::cout << "building value" << std::endl;
     build_value(value);
+    // std::cout << "value built" << std::endl;
     // std::cout << "Value: " << value << std::endl;
     hash_index.insert(key, value);
+    // std::cout << "inserted" << std::endl;
 }
 
 
