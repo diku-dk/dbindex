@@ -10,6 +10,7 @@ namespace ycsb {
 
 void do_insertions_concurrent(dbindex::abstract_index& hash_index, workload& wl, std::uint32_t record_count) {
 	for (std::uint32_t i = 0; i < record_count; i++) {
+		// std::cout << ((double)i*100)/((double)record_count) << "%" << std::endl;
 		wl.do_insert(hash_index);
 	}
 }
@@ -36,7 +37,6 @@ void do_transactions_concurrent_timed(dbindex::abstract_index& hash_index, workl
 
 void client::run_build_records(std::uint8_t thread_count) {
 	std::thread threads[thread_count];
-
 	std::uint32_t thread_record_count = wl.get_record_count() / thread_count;
 
 	// Insertions 	- Initialization of the index
