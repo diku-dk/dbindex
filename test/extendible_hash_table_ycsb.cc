@@ -143,10 +143,17 @@ void test_workload_a(std::uint8_t thread_count, std::string workload_string, std
         thread_total_duration = 0;
         for(std::uint32_t i = 0; i < iterations; i++) 
             thread_total_duration += durations[(t-1)*iterations + i];
+        double mean = thread_total_duration / iterations;
+        double var = 0.0;
+        for(std::uint32_t i = 0; i < iterations; i++)
+        {
+            var += (durations[(t-1)*iterations + i]-mean)*(durations[(t-1)*iterations + i]-mean);
+        }
+        var /= iterations;
         std::cout << "Avg: " << (thread_total_duration / iterations) << std::endl;
 
         // Writing data to file
-        out_file << t << "\t" << (thread_total_duration / iterations) << "\n";
+        out_file << t << "\t" << mean << "\t" << var << "\n";
         std::cout << "Data written" << std::endl;
     }
     out_file.flush();
