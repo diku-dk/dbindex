@@ -44,7 +44,7 @@ namespace dbindex {
         static_assert(std::is_same<value_t, std::uint32_t>::value, "Unsupported hash_value");
     private:
         value_t seed {
-                static_cast<value_t>(std::chrono::high_resolution_clock::now().time_since_epoch().count()) };
+            static_cast<value_t>(std::chrono::high_resolution_clock::now().time_since_epoch().count()) };
 
         inline std::uint32_t rotl32(const std::uint32_t& x,
                 const std::uint8_t& r) {
@@ -69,8 +69,7 @@ namespace dbindex {
         value_t get_hash(const std::string& key) override {
             static_assert(sizeof(value_t) == sizeof(std::uint32_t), "value_t must be 32 bit");
             this->check_key_not_empty(key);
-            const std::uint8_t *ukey =
-                    reinterpret_cast<const std::uint8_t *>(key.c_str());
+            const std::uint8_t *ukey = reinterpret_cast<const std::uint8_t *>(key.c_str());
             const std::uint8_t len = key.size();
             const std::uint32_t nblocks = len / 4;
             value_t h1 = seed;
@@ -81,10 +80,9 @@ namespace dbindex {
             //----------
             // body
 
-            const std::uint32_t * blocks = (const std::uint32_t *) (ukey
-                    + nblocks * 4);
+            const std::uint32_t * blocks = (const std::uint32_t *) (ukey + nblocks * 4);
 
-            for (std::size_t i = 0; i < nblocks; i++) {
+            for (std::size_t i = -nblocks; i; i++) {
                 value_t k1 = blocks[i];
 
                 k1 *= c1;
@@ -99,8 +97,7 @@ namespace dbindex {
             //----------
             // tail
 
-            const std::uint8_t * tail = (const std::uint8_t*) (ukey
-                    + nblocks * 4);
+            const std::uint8_t * tail = (const std::uint8_t *) (ukey + nblocks * 4);
 
             value_t k1 = 0;
 
