@@ -3,7 +3,7 @@ NUM_THREADS    = -1
 
 CXX = g++
 CXXFLAGS = -std=c++11 -Wall -MMD -fno-omit-frame-pointer -g 
-LDFLAGS = -pthread -lboost_system -lboost_thread
+LDFLAGS = -lpthread -lboost_system -lboost_thread -lgtest
 LDTESTFLAG = 
 OPTFLAG = -03 -funroll-loops
 
