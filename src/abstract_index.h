@@ -20,6 +20,8 @@ namespace dbindex {
                 abstract_push_op&) = 0;
         virtual void reverse_range_scan(const std::string& start_key,
                 const std::string* end_key, abstract_push_op&) = 0;
+        virtual size_t size() = 0;
+        virtual std::string to_string() = 0;
         virtual ~abstract_index() {};
     };
 }
