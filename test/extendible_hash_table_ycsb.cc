@@ -9,6 +9,7 @@
 #include "../src/hash_functions/tabulation_hash.h"
 #include "../src/hash_functions/murmur_hash_32.h"
 #include "../src/hash_index/array_hash_table.h"
+#include "../src/hash_index/partitioned_array_hash_table.h"
 #include "../src/hash_index/extendible_hash_table.h"
 #include "../src/benchmarks/ycsb/client.h"
 #include "../src/benchmarks/ycsb/core_workloads.h"
@@ -29,6 +30,17 @@ ycsb::workload_properties parse_workload_string(std::string workload_string) {
     if (workload_string.compare("workload_f") == 0)
         return ycsb::workload_f;
 
+    if (workload_string.compare("workload_read") == 0)
+        return ycsb::workload_read;
+    if (workload_string.compare("workload_update") == 0)
+        return ycsb::workload_update;
+    if (workload_string.compare("workload_scan") == 0)
+        return ycsb::workload_scan;
+    if (workload_string.compare("workload_insert") == 0)
+        return ycsb::workload_insert;
+    if (workload_string.compare("workload_rmf") == 0)
+        return ycsb::workload_read_modify_write;
+
     std::cout << "Unknown workload_type, returning workload_a" << std::endl;
     return ycsb::workload_a;
 }
@@ -47,6 +59,17 @@ std::string workload_to_string(ycsb::workload_properties workload_x) {
     if (workload_x == ycsb::workload_f)
         return "workload_f";
 
+    if (workload_x == ycsb::workload_read)
+        return "workload_read";
+    if (workload_x == ycsb::workload_update)
+        return "workload_update";
+    if (workload_x == ycsb::workload_scan)
+        return "workload_scan";
+    if (workload_x == ycsb::workload_insert)
+        return "workload_insert";
+    if (workload_x == ycsb::workload_read_modify_write)
+        return "workload_rmf";
+
     std::cout << "Unknown workload, returning workload_a" << std::endl;
     return "workload_a";
 }
@@ -56,6 +79,7 @@ void test_workload_a(std::uint8_t thread_count, std::string workload_string, std
 
     constexpr size_t directory_size = 1<<10;
     constexpr size_t initial_global_depht = 2;
+    constexpr std::uint8_t prefix_bits = 4;
     constexpr std::uint32_t mod_value = 1<<31;
     constexpr std::uint32_t MAX_KEY_LEN_VAL = 14;
 
@@ -100,6 +124,10 @@ void test_workload_a(std::uint8_t thread_count, std::string workload_string, std
         hash_index_string = "extendible_hash_table";
         hash_table = new dbindex::extendible_hash_table<initial_global_depht>(*hash);
         break;
+    case 2:
+        hash_index_string = "partitioned_array_hash_table";
+        hash_table = new dbindex::partitioned_array_hash_table<prefix_bits, directory_size>(*hash);
+        break;
     default:
         std::cout << "Unknown hash_index_num: \"" << hash_index_num << "\"." << std::endl;
         hash_index_string = "extendible_hash_table";
@@ -136,6 +164,7 @@ void test_workload_a(std::uint8_t thread_count, std::string workload_string, std
         std::cout << "Thread count: " << t << ": " << std::endl;
         for(std::uint32_t i = 0; i < iterations; i++) 
         {
+            std::cout << "Iteration: " << i << std::endl;
             durations[(t-1)*iterations + i] = client.run_transactions(t);;
             // std::cout << i << ": " <<  durations[(t-1)*iterations + i] << std::endl;
         }

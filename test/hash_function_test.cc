@@ -41,10 +41,17 @@
 #include <utility>
 #include <random>
 #include <limits>
+#include <cmath>
 #include "../src/hash_functions/mod_hash.h"
 #include "../src/hash_functions/mult_shift_hash.h"
 #include "../src/hash_functions/murmur_hash_32.h"
 #include "../src/hash_functions/tabulation_hash.h"
+#include <boost/accumulators/accumulators.hpp>
+#include <boost/accumulators/statistics/mean.hpp>
+#include <boost/accumulators/statistics/variance.hpp>
+#include <boost/accumulators/accumulators.hpp>
+#include <boost/ref.hpp>
+#include <boost/accumulators/statistics/skewness.hpp>
 
 namespace dbindex {
     namespace test {
@@ -55,13 +62,17 @@ namespace dbindex {
             static constexpr int MAX_KEY_LEN_VAL = 64;
             static constexpr int NUM_EQUALITY_INPUTS = 100;
             static constexpr int NUM_EQUALITY_ASSERTS = 5;
+            static constexpr int NUM_SPREAD_ITERATIONS = 10;
+            static constexpr int NUM_SPREAD_INPUTS = 20000;
+            static constexpr int NUM_SPREAD_BUCKETS = 100;
+            static constexpr float ACCEPTABLE_DEV_MEAN_RATIO = .1;
         private:
             std::vector<std::unique_ptr<dbindex::abstract_hash<hash_value_t>>>hash_functions;
 
     public:
         void setUp() {
-            hash_functions.emplace_back(std::unique_ptr<dbindex::abstract_hash<hash_value_t>>(new dbindex::mod_hash<hash_value_t,MOD_HASH_MOD_VAL>()));
-            hash_functions.emplace_back(std::unique_ptr<dbindex::abstract_hash<hash_value_t>>(new dbindex::mult_shift_hash<hash_value_t>()));
+            // hash_functions.emplace_back(std::unique_ptr<dbindex::abstract_hash<hash_value_t>>(new dbindex::mod_hash<hash_value_t,MOD_HASH_MOD_VAL>()));
+            // hash_functions.emplace_back(std::unique_ptr<dbindex::abstract_hash<hash_value_t>>(new dbindex::mult_shift_hash<hash_value_t>()));
             hash_functions.emplace_back(std::unique_ptr<dbindex::abstract_hash<hash_value_t>>(new dbindex::murmur_hash_32<hash_value_t>()));
             hash_functions.emplace_back(std::unique_ptr<dbindex::abstract_hash<hash_value_t>>(new dbindex::tabulation_hash<hash_value_t, MAX_KEY_LEN_VAL>()));
         }
@@ -91,22 +102,62 @@ namespace dbindex {
             }
         }
 
+        void test_spread() {
+            static_assert(NUM_SPREAD_BUCKETS < NUM_SPREAD_INPUTS, "Buckets must be less than inputs");
+            std::default_random_engine generator;
+            std::uniform_int_distribution<input_key_t> distribution(std::numeric_limits<input_key_t>::min(), std::numeric_limits<input_key_t>::max());
+            for(auto& hash_fn : hash_functions) {
+                std::vector<std::uint64_t> histogram(NUM_SPREAD_BUCKETS);
+                int failed_iterations = 0;
+                for (int iteration = 0; iteration < NUM_SPREAD_ITERATIONS; iteration++) {
+                    std::fill(histogram.begin(), histogram.end(), 0);
+                    for (int i = 0; i < NUM_SPREAD_INPUTS; i++) {
+                        auto input_val = distribution(generator);
+                        auto input_val_string = std::string(reinterpret_cast<char*>(&input_val), sizeof(input_val));
+                        auto hash_val = hash_fn->get_hash(input_val_string);
+                        hash_value_t bucket = hash_val % (hash_value_t) NUM_SPREAD_BUCKETS;
+                        histogram[bucket]++;
+                    }
+                    //Check spread
+                    boost::accumulators::accumulator_set<double, 
+                    boost::accumulators::features<
+                                    boost::accumulators::tag::mean,
+                                    boost::accumulators::tag::variance>> acc;
+                    std::for_each(histogram.begin(), histogram.end(),
+                            [&](std::uint64_t& val) {acc(val);});
+                    auto mean = boost::accumulators::extract::mean(acc);
+                    auto std_dev = std::sqrt(
+                            boost::accumulators::extract::variance(acc));
+                    if ((float) std_dev / mean > ACCEPTABLE_DEV_MEAN_RATIO) {
+                        failed_iterations++;
+                    }
+                    //Should do a Chi-Squared test
+                }
+
+                CPPUNIT_ASSERT(failed_iterations < NUM_SPREAD_ITERATIONS / 2);
+            }
+        }
+
         static CppUnit::Test *suite() {
-            CppUnit::TestSuite *suiteOfTests = new CppUnit::TestSuite(
+            CppUnit::TestSuite *suite_of_tests = new CppUnit::TestSuite(
                     "hash_function_test");
-            suiteOfTests->addTest(
-                    new CppUnit::TestCaller<hash_function_test>("test_equality",
-                            &hash_function_test::test_equality));
+
+            suite_of_tests->addTest(new CppUnit::TestCaller<hash_function_test>(
+                          "test_equality",
+                          &hash_function_test::test_equality));
+            suite_of_tests->addTest(new CppUnit::TestCaller<hash_function_test>(
+                          "test_spread",
+                          &hash_function_test::test_spread));
             CppUnit::TestResult result;
-            return suiteOfTests;
+            return suite_of_tests;
         }
     };
 }
 }
 
 int main(int argc, char **argv) {
-// CppUnit::TextTestRunner runner;
-// runner.addTest(dbindex::test::hash_function_test::suite());
-// runner.run();
-// return 0;
+    CppUnit::TextTestRunner runner;
+    runner.addTest(dbindex::test::hash_function_test::suite());
+    runner.run();
+    return 0;
 }

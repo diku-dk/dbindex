@@ -3,13 +3,15 @@ reset
 # Specify workload, hash_function and hash_index
 if (!exists("workload")) workload     = 'workload_a'
 if (!exists("hash_func")) hash_func   = 'tabulation'
-if (!exists("hash_index")) hash_index = 'array'
+# if (!exists("hash_index")) hash_index = 'array'
 
-name = sprintf('%s_hash_%s_hash_table_%s', hash_func, hash_index, workload)
+name = sprintf('%s_hash_%s', hash_func, workload)
+name_arr = sprintf('%s_hash_array_hash_table_%s', hash_func, workload)
+name_ext = sprintf('%s_hash_extendible_hash_table_%s', hash_func, workload)
 
 # Set output image position
 set term png enhanced
-set output sprintf('../results/graphs/%s.png', name)
+set output sprintf('results/graphs/%s.png', name)
 
 # Setup labels and legend
 set xlabel "Amount of threads"
@@ -18,18 +20,20 @@ set key box opaque
 set border back
 
 # Calculating stats from file
-stats sprintf('../results/%s.txt', name) every ::0 using 2 nooutput
+stats sprintf('results/%s.txt', name_arr) every ::0 using 2 nooutput
 #amount  = int(STATS_records)
 #mean    = int(STATS_mean)
 ymax     = int(STATS_max)
 #std_dev = real(STATS_stddev)
 
-stats sprintf('../results/%s.txt', name) every ::0 using 1 nooutput
+stats sprintf('results/%s.txt', name_arr) every ::0 using 1 nooutput
 xmax     = int(STATS_max)
 
 # Making plot
 set xrange [0:xmax]
-set yrange [0:ymax*1.5]
+set yrange [0:2000]
 print ymax
-plot sprintf('../results/%s.txt', name) title name,\
-	'' using 1:2 w linespoints ls 1 notitle
+plot sprintf('results/%s.txt', name_arr) title sprintf('Array-index, %s hashing, %s', hash_func, workload) with errorbars lt rgb "red",\
+	'' notitle with lines lt rgb "red", \
+	sprintf('results/%s.txt', name_ext) title sprintf('Extendible-index, %s hashing, %s', hash_func, workload) with errorbars lt rgb "green", \
+	'' notitle with lines lt rgb "green"

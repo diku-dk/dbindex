@@ -56,6 +56,7 @@ namespace dbindex {
 				directory[b] = NULL;
 			}
 		}
+		array_hash_table( array_hash_table&& ) = default; // Move constructor
 			
 		~array_hash_table() {
 			for (std::uint32_t b = 0; b < directory_size; b++) {
@@ -164,61 +165,92 @@ namespace dbindex {
 		}
 
 		void range_scan(const std::string& start_key, const std::string* end_key, abstract_push_op& apo) override{
+			if (end_key) assert(*end_key > start_key);
+			
+			// std::cout << "i1" << std::endl;
 			typedef std::tuple<std::string, std::string> hash_entry;
 
-			auto cmp = [](hash_entry a, hash_entry b) { return std::get<0>(a) > std::get<0>(b);};
-			std::priority_queue<hash_entry, std::vector<hash_entry>, decltype(cmp)> pri_queue(cmp);
+			// std::cout << "i2" << std::endl;
+			std::priority_queue<hash_entry, std::vector<hash_entry>, less_than_hash_entry> pri_queue;
 
+			// std::cout << "i3" << std::endl;
 			// FULL SCAN
-			for (std::uint32_t i = 0; i < directory_size; i++) {
+			for (std::uint32_t i = 0; i < directory_size; i++) {			
+				// std::cout << "i31" << std::endl;
 				boost::shared_lock<boost::shared_mutex> local_shared_lock(bucket_mutexes[i]);
-				for (std::uint32_t j = 0; j < directory[i]->keys.size(); j++) {
-					if (directory[i]->keys[j] >= start_key && directory[i]->keys[j] <= *end_key) {
-						pri_queue.push(std::make_tuple(directory[i]->keys[j], directory[i]->values[j]));
+				// std::cout << "i32" << std::endl;
+				// std::cout << directory.size() << std::endl;
+				// std::cout << i << std::endl;
+				if (directory[i]) {
+					for (std::uint32_t j = 0; j < directory[i]->keys.size(); j++) {
+						// std::cout << "i33" << std::endl;
+						if (directory[i]->keys[j] >= start_key && (!end_key || directory[i]->keys[j] <= *end_key)) {
+							// std::cout << "i34" << std::endl;
+							pri_queue.push(std::make_tuple(directory[i]->keys[j], directory[i]->values[j]));
+							// std::cout << "i35" << std::endl;
+						}
+						// std::cout << "i36" << std::endl;
 					}
 				}
 				local_shared_lock.unlock();
 			}
+			// std::cout << "i4" << std::endl;
 			// Apply push op
 			while(!pri_queue.empty()) {
 				hash_entry current = pri_queue.top();
 				std::string key   = std::get<0>(current);
 				std::string value = std::get<1>(current);
 				const char* keyp = key.c_str();
-				if (!apo.invoke(keyp, key.length(), value)) {
+				if (!apo.invoke(keyp, key.size(), value)) {
 					return;
 				}
 				pri_queue.pop();
 			}
+			// std::cout << "i5" << std::endl;
 		}
 
 		void reverse_range_scan(const std::string& start_key, const std::string* end_key, abstract_push_op& apo) override{
+			if (end_key) assert(*end_key > start_key);
+			// std::cout << "i1" << std::endl;
 			typedef std::tuple<std::string, std::string> hash_entry;
 
-			auto cmp = [](hash_entry a, hash_entry b) { return std::get<0>(a) < std::get<0>(b);};
-			std::priority_queue<hash_entry, std::vector<hash_entry>, decltype(cmp)> pri_queue(cmp);
+			// std::cout << "i2" << std::endl;
+			std::priority_queue<hash_entry, std::vector<hash_entry>, greater_than_hash_entry> pri_queue;
 
+			// std::cout << "i3" << std::endl;
 			// FULL SCAN
 			for (std::uint32_t i = 0; i < directory_size; i++) {			
+				// std::cout << "i31" << std::endl;
 				boost::shared_lock<boost::shared_mutex> local_shared_lock(bucket_mutexes[i]);
-				for (std::uint32_t j = 0; j < directory[i]->keys.size(); j++) {
-					if (directory[i]->keys[j] >= start_key && directory[i]->keys[j] <= *end_key) {
-						pri_queue.push(std::make_tuple(directory[i]->keys[j], directory[i]->values[j]));
+				// std::cout << "i32" << std::endl;
+				// std::cout << directory.size() << std::endl;
+				// std::cout << i << std::endl;
+				if (directory[i]) {
+					for (std::uint32_t j = 0; j < directory[i]->keys.size(); j++) {
+						// std::cout << "i33" << std::endl;
+						if (directory[i]->keys[j] >= start_key && (!end_key || directory[i]->keys[j] <= *end_key)) {
+							// std::cout << "i34" << std::endl;
+							pri_queue.push(std::make_tuple(directory[i]->keys[j], directory[i]->values[j]));
+							// std::cout << "i35" << std::endl;
+						}
+						// std::cout << "i36" << std::endl;
 					}
 				}
 				local_shared_lock.unlock();
 			}
+			// std::cout << "i4" << std::endl;
 			// Apply push op
 			while(!pri_queue.empty()) {
 				hash_entry current = pri_queue.top();
 				std::string key   = std::get<0>(current);
 				std::string value = std::get<1>(current);
 				const char* keyp = key.c_str();
-				if (!apo.invoke(keyp, key.length(), value)) {
+				if (!apo.invoke(keyp, key.size(), value)) {
 					return;
 				}
 				pri_queue.pop();
 			}
+			// std::cout << "i5" << std::endl;
 		}
 
 		std::uint32_t get_directory_size() {
@@ -234,6 +266,11 @@ namespace dbindex {
 			}
 			return total_entry_count;
 		}
+
+        std::string to_string() override {
+            return "array_hash_table";
+        }
+
 	};
 }
 

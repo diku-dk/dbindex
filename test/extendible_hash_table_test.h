@@ -6,160 +6,32 @@
 #include <cppunit/TestCaller.h>
 #include <cppunit/TestSuite.h>
 #include "../src/abstract_index.h"
+#include "../test/common_hash_table_test.h"
 #include "../src/hash_index/extendible_hash_table.h"
 #include "../src/hash_functions/mod_hash.h"
 #include "../src/push_ops.h"
 #include "../src/util/thread_util.h"
 #include <boost/thread.hpp>
-#include <boost/thread/shared_mutex.hpp>
 #include <thread>
 
-typedef boost::shared_mutex shared_mutex;
 
 namespace dbindex {
 
 	constexpr std::uint8_t initial_global_depht = 2;
-	void insert_concurrent(extendible_hash_table<initial_global_depht>& hash_table, std::string *keys, std::uint32_t amount) {
-		// Calculating the hashing
-		for(std::uint32_t j = 0; j < amount; j++) {
-			hash_table.insert(keys[j], keys[j]);
-			// std::cout << keys[j] << " DONE" << std::endl;
-		}
-	}
 
-	shared_mutex mutex;
-
-	void test_upgrade()
-	{
-		std::cout << "Start: " << boost::this_thread::get_id() << std::endl;
-		boost::shared_lock<shared_mutex> read_lock(mutex);
-		std::cout << "Shared: " << boost::this_thread::get_id() << std::endl;
-		sleep(2);
-		std::cout << "Slept1: " << boost::this_thread::get_id() << std::endl;
-		std::cout << "Slept1: " << boost::this_thread::get_id() << std::endl;
-		std::cout << "Slept1: " << boost::this_thread::get_id() << std::endl;
-		std::cout << "Slept1: " << boost::this_thread::get_id() << std::endl;
-		std::cout << "Slept1: " << boost::this_thread::get_id() << std::endl;
-		boost::upgrade_lock<shared_mutex> upgrade_lock(mutex);
-		boost::upgrade_to_unique_lock<shared_mutex> write_lock(upgrade_lock);
-		std::cout << "Upgraded: " << boost::this_thread::get_id() << std::endl;
-		sleep(10);
-		std::cout << "Slept2: " << boost::this_thread::get_id() << std::endl;
-		// boost::upgrade_to_unique_lock<shared_mutex> write_lock(read_lock);
-		sleep(3);
-		std::cout << "Slept3: " << boost::this_thread::get_id() << std::endl;
-	}
-
-	class concat_push_op : public abstract_push_op {
-	private:
-		std::string concat_result = "";
-    public:
-        ~concat_push_op() {}
-        
-        bool invoke(const char *keyp, size_t keylen, const std::string &value) {
-        	concat_result += ", " + value;
-        	return true;
-        }
-        std::string get() {
-        	return concat_result;
-        }
-    };
-
-	class extendible_hash_table_test : public CppUnit::TestFixture {
+	class extendible_hash_table_test : public common_hash_table_test<mod_hash<hash_value_t, (1<<31)>, extendible_hash_table<initial_global_depht>> {
 	private:
 		mod_hash<hash_value_t, (1<<31)> hash{};
 		extendible_hash_table<initial_global_depht> hash_table{hash};
 		concat_push_op concat_push{};
 
 	public:
-		extendible_hash_table_test(){}
+		extendible_hash_table_test() : common_hash_table_test(hash, hash_table) {}
 
 		void setUp() {
 		}
 
 		void tearDown() {
-		}
-
-		void test_insert() {
-			std::cout << "TEST_INSERT" << std::endl;
-			CPPUNIT_ASSERT(is_table_empty());
-			hash_table.insert(" 0", " 1");
-			CPPUNIT_ASSERT(!is_table_empty());
-		}
-
-		void test_delete() {
-			std::cout << "TEST_DELETE" << std::endl;
-			CPPUNIT_ASSERT(is_table_empty());
-			hash_table.insert(" 0", " 1");
-			CPPUNIT_ASSERT(!is_table_empty());
-			hash_table.remove(" 1");
-			CPPUNIT_ASSERT(!is_table_empty());
-			hash_table.insert(" 1", " 1");
-			hash_table.remove(" 1");
-			CPPUNIT_ASSERT(!is_table_empty());
-			hash_table.remove(" 0");
-			CPPUNIT_ASSERT(is_table_empty());
-		}
-
-		void test_insert_delete_many() {
-			std::cout << "TEST_INSERT_DELETE_MANY" << std::endl;
-			CPPUNIT_ASSERT(hash_table.get_global_depth() == 2);
-			std::uint64_t i = 0;
-			std::uint8_t  p = 10;
-			for (std::uint8_t j = 1; j <= p; j++) {
-	  			for (; i < (std::uint32_t)(1<<j)*hash_table.get_bucket_entries(); i++)
-	  			{
-					hash_table.insert(std::to_string(i*hash_table.get_bucket_entries()), " 1");
-	  			}
-				CPPUNIT_ASSERT(hash_table.get_global_depth() == 2+j);
-	  		}
-			CPPUNIT_ASSERT(hash_table.size() == (std::uint32_t)(1<<p)*hash_table.get_bucket_entries());
-			for (i = 0; i < (std::uint32_t)(1<<p)*hash_table.get_bucket_entries(); i++)
-  			{
-				hash_table.remove(std::to_string(i*hash_table.get_bucket_entries()));
-  			}
-			CPPUNIT_ASSERT(hash_table.size() == 0);
-		}
-
-		void test_update() {
-			std::cout << "TEST_UPDATE" << std::endl;
-			CPPUNIT_ASSERT(hash_table.size() == 0);
-			hash_table.insert("1", "1");
-			CPPUNIT_ASSERT(hash_table.size() == 1);
-			hash_table.update("0", "1");
-			CPPUNIT_ASSERT(hash_table.size() == 1);
-			std::string a;
-			hash_table.get("1", a);
-			CPPUNIT_ASSERT(a == "1");
-			hash_table.update("1", "2");
-			CPPUNIT_ASSERT(hash_table.size() == 1);
-			hash_table.get("1", a);
-			CPPUNIT_ASSERT(a == "2");
-		}
-
-		void test_scan() {
-			std::cout << "TEST_SCAN" << std::endl;
-			hash_table.insert("1", "one");
-			hash_table.insert("2", "two");
-			hash_table.insert("3", "three");
-			hash_table.insert("4", "four");
-			hash_table.insert("5", "five");
-			const std::string &a = "2";
-			const std::string b = "4";
-			hash_table.range_scan(a, &b, concat_push);
-			CPPUNIT_ASSERT(concat_push.get() == ", two, three, four");
-		}
-		void test_scan_reverse() {
-			std::cout << "TEST_SCAN_REVERSE" << std::endl;
-			hash_table.insert("1", "one");
-			hash_table.insert("2", "two");
-			hash_table.insert("3", "three");
-			hash_table.insert("4", "four");
-			hash_table.insert("5", "five");
-			const std::string &a = "2";
-			const std::string b = "4";
-			hash_table.reverse_range_scan(a, &b, concat_push);
-			CPPUNIT_ASSERT(concat_push.get() == ", four, three, two");
 		}
 
 		void test_split() {
@@ -205,49 +77,24 @@ namespace dbindex {
 			CPPUNIT_ASSERT(hash_table.get_global_depth() == 4);			
 		}
 
-		void test_concurrent_different() {
-			std::cout << "TEST_CONCURRENT_DIFFERENT" << std::endl;
-			std::uint8_t  num_threads = 4;
-			std::uint32_t amount      = 40000;
-			std::thread   threads[num_threads];
-			std::vector<std::string> keys{amount*num_threads};
-
-			for(std::uint32_t j = 0; j < num_threads; j++) {
-				for(std::uint32_t i = 0; i < amount; i++) {
-					keys[j*amount+i] = std::to_string(j+i*num_threads);
+		void test_insert_delete_many() {
+			std::cout << "TEST_INSERT_DELETE_MANY" << std::endl;
+			CPPUNIT_ASSERT(hash_table.get_global_depth() == 2);
+			std::uint64_t i = 0;
+			std::uint8_t  p = 10;
+			for (std::uint8_t j = 1; j <= p; j++) {
+					for (; i < (std::uint32_t)(1<<j)*hash_table.get_bucket_entries(); i++)
+					{
+					hash_table.insert(std::to_string(i*hash_table.get_bucket_entries()), " 1");
+					}
+				CPPUNIT_ASSERT(hash_table.get_global_depth() == 2+j);
 				}
-			}
-			
- 			for(std::uint32_t t = 0; t < num_threads; t++) {
-				threads[t] = std::thread(insert_concurrent, std::ref(hash_table), &keys[t*amount], amount);
-				utils::stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
-			}
-			for(std::uint32_t t = 0; t < num_threads; t++) {
-				threads[t].join();
-			}
-			CPPUNIT_ASSERT(hash_table.size() == num_threads*amount);
-		}
-
-		void test_concurrent_all() {
-			std::cout << "TEST_CONCURRENT_ALL" << std::endl;
-			std::uint8_t  num_threads = 4;
-			std::uint32_t amount      = 1<<16;
-			std::thread   threads[num_threads];
-			std::vector<std::string> keys{amount*num_threads};
-
-			for(std::uint32_t i = 0; i < amount*num_threads; i++) {
-				keys[i] = std::to_string(i);
-			}
-			
- 			for(std::uint32_t t = 0; t < num_threads; t++) {
-				threads[t] = std::thread(insert_concurrent, std::ref(hash_table), &keys[t*amount], amount);
-				utils::stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
-			}
-			for(std::uint32_t t = 0; t < num_threads; t++) {
-				threads[t].join();
-			}
-			std::cout << hash_table.size() << ", " << num_threads*amount << std::endl;
-			CPPUNIT_ASSERT(hash_table.size() == num_threads*amount);
+			CPPUNIT_ASSERT(hash_table.size() == (std::uint32_t)(1<<p)*hash_table.get_bucket_entries());
+			for (i = 0; i < (std::uint32_t)(1<<p)*hash_table.get_bucket_entries(); i++)
+				{
+				hash_table.remove(std::to_string(i*hash_table.get_bucket_entries()));
+				}
+			CPPUNIT_ASSERT(hash_table.size() == 0);
 		}
 
 		void test_spec() {
@@ -270,58 +117,48 @@ namespace dbindex {
 			// hash_table.print_extendible_hash_table(false);
 		}
 
-		bool is_table_empty() {
-			return hash_table.size() == 0;
-		}
-
 		static CppUnit::Test *suite()
 		{
 			CppUnit::TestSuite *suite_of_tests = new CppUnit::TestSuite( "extendible_hash_table_suite" );
-			// suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
-   //          	           "test_insert",
-   //          	           	&extendible_hash_table_test::test_insert ) );
-			// suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
-   //              	       "test_delete",
-   //                  	   &extendible_hash_table_test::test_delete ) );
-			// suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
-   //              	       "test_update",
-   //                  	   &extendible_hash_table_test::test_update ) );
+			suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
+            	           "test_insert",
+            	           	&extendible_hash_table_test::test_insert ) );
+			suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
+                	       "test_delete",
+                    	   &extendible_hash_table_test::test_delete ) );
+			suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
+                	       "test_update",
+                    	   &extendible_hash_table_test::test_update ) );
 
-			// suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
-   //              	       "test_scan",
-   //                  	   &extendible_hash_table_test::test_scan ) );
-			// suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
-   //              	       "test_scan_reverse",
-   //                  	   &extendible_hash_table_test::test_scan_reverse ) );
+			suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
+                	       "test_scan",
+                    	   &extendible_hash_table_test::test_scan ) );
 
-			// suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
-   //                     		"test_split",
-   //                     		&extendible_hash_table_test::test_split ) );
-			// suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
-   //                     		"test_double_split",
-   //                     		&extendible_hash_table_test::test_double_split ) );
+			suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
+                       		"test_split",
+                       		&extendible_hash_table_test::test_split ) );
+			suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
+                       		"test_double_split",
+                       		&extendible_hash_table_test::test_double_split ) );
 
-			// suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
-   //                     		"test_insert_delete_many",
-   //                     		&extendible_hash_table_test::test_insert_delete_many ) );
+			suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
+                       		"test_insert_delete_many",
+                       		&extendible_hash_table_test::test_insert_delete_many ) );
 			
-			// suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
-   //                     		"test_concurrent_different",
-   //                     		&extendible_hash_table_test::test_concurrent_different ) );
-			// for (std::uint32_t i = 0; i < 200; i++) {
+			suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
+                       		"test_concurrent_different",
+                       		&extendible_hash_table_test::test_concurrent_different ) );
 			suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
                        		"test_concurrent_all",
                        		&extendible_hash_table_test::test_concurrent_all ) );
-		// }
-			// suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
-   //                     		"test_spec",
-   //                     		&extendible_hash_table_test::test_spec ) );
+			suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
+                       		"test_concurrent_updates_known",
+                       		&extendible_hash_table_test::test_concurrent_updates_known ) );
+			suite_of_tests->addTest( new CppUnit::TestCaller<extendible_hash_table_test>(
+                       		"test_concurrent_scans",
+                       		&extendible_hash_table_test::test_concurrent_scans ) );
 			return suite_of_tests;
 		};
-
-
-		// Implement is_entry_empty
-		// Implement size
 	};
 }
 #endif /* TEST_EXTENDIBLE_HASH_TABLE_TEST_H_ */

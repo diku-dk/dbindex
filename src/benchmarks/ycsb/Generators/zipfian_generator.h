@@ -13,7 +13,7 @@ namespace ycsb {
 template <typename value_t>
 class zipfian_generator : public abstract_generator<value_t> {
  public:
-    constexpr static const double k_zipfian_const = 0.99;
+    static constexpr const double k_zipfian_const = 0.99;
     static const value_t k_max_num_items = std::numeric_limits<value_t>::max();
     
     zipfian_generator(value_t min, value_t max, double zipfian_const = k_zipfian_const) :

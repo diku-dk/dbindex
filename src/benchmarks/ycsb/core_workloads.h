@@ -51,6 +51,10 @@ struct workload_properties {
     }
 };
 
+// Counts:        record, operation
+// Proportions:   read, update, scan, insert, RMW
+// Distributions: request, scan_len
+// Max_values:    scan_len, value_len
 static const workload_properties workload_a = {
     100000, 100000, 
     0.5, 0.5, 0, 0, 0, 
@@ -84,6 +88,43 @@ static const workload_properties workload_e = {
 static const workload_properties workload_f = {
     100000, 100000,
     0.5, 0, 0, 0, 0.5, 
+    distribution_type::ZIPFIAN, distribution_type::UNUSED, 
+    0, 100
+};
+
+
+// Counts:        record, operation
+// Proportions:   read, update, scan, insert, RMW
+// Distributions: request, scan_len
+// Max_values:    scan_len, value_len
+static const workload_properties workload_read = {
+    100000, 100000,
+    1, 0, 0, 0, 0, 
+    distribution_type::ZIPFIAN, distribution_type::UNUSED, 
+    0, 100
+};
+
+static const workload_properties workload_update = {
+    100000, 100000,
+    0, 1, 0, 0, 0, 
+    distribution_type::ZIPFIAN, distribution_type::UNUSED, 
+    0, 100
+};
+static const workload_properties workload_scan = {
+    10000, 100000,
+    0, 0, 1, 0, 0, 
+    distribution_type::ZIPFIAN, distribution_type::UNUSED, 
+    0, 100
+};
+static const workload_properties workload_insert = {
+    100000, 100000,
+    0, 0, 0, 1, 0, 
+    distribution_type::ZIPFIAN, distribution_type::UNUSED, 
+    0, 100
+};
+static const workload_properties workload_read_modify_write = {
+    100000, 100000,
+    0, 0, 0, 0, 1, 
     distribution_type::ZIPFIAN, distribution_type::UNUSED, 
     0, 100
 };

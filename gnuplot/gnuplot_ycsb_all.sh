@@ -4,7 +4,7 @@ do
 	do
 		for hi in array extendible;
 		do
-			gnuplot -e "workload='$wl'" -e "hash_func='$hf'" -e "hash_index='$hi'" gnuplot_ycsb_core_workload;
+			gnuplot -e "workload='$wl'" -e "hash_func='$hf'" -e "hash_index='$hi'" gnuplot/gnuplot_ycsb_core_workload;
 		done;
 	done;
 done

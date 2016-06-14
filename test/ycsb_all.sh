@@ -1,6 +1,6 @@
 for wl in workload_b workload_c workload_d workload_f workload_a;
 do
-	for hf in 2 1;
+	for hf in 1;
 	do
 		for hi in 0 1;
 		do

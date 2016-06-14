@@ -2,10 +2,10 @@ NUM_TABLES     = -1
 NUM_THREADS    = -1
 
 CXX = g++
-CXXFLAGS = -std=c++11 -Wall -MMD -fno-omit-frame-pointer -g 
+CXXFLAGS = -std=c++14 -Wall -MMD -fno-omit-frame-pointer -g 
 LDFLAGS = -pthread -lboost_system -lboost_thread
-LDTESTFLAG = 
-OPTFLAG = -03 -funroll-loops
+LDTESTFLAG = -lcppunit
+OPTFLAG = -O3 -funroll-loops
 
 BUILD_DIR = bin
 OBJ_DIR = $(BUILD_DIR)/objs
