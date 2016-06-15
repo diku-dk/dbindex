@@ -47,6 +47,8 @@ namespace dbindex {
             void set_equal_to_copy(const hash_bucket &other){
                 local_depth  = other.local_depth;
                 entry_count  = other.entry_count;
+                if (entry_count > bucket_entries)
+                    throw ("Trying to overflow bucket: " + std::to_string(original_index));
                 std::copy(&other.keys[0], &other.keys[bucket_entries], &keys[0]);
                 std::copy(&other.values[0], &other.values[bucket_entries], &values[0]);
             }
@@ -54,6 +56,8 @@ namespace dbindex {
                 keys  [entry_count] = new_key;
                 values[entry_count] = new_value;
                 entry_count++;
+                if (entry_count > bucket_entries)
+                    throw ("Trying to overflow bucket: " + std::to_string(original_index));
             }
 
             void move_last_to(std::uint32_t i) {
@@ -126,43 +130,6 @@ namespace dbindex {
 
             return buckets_to_insert;
         }
-
-        // Returns true if all entries ended in one bucket (thus retry), false if a proper splitting was done.
-        // std::uint8_t create_bucket_and_insert(hash_bucket *bucket, std::vector<hash_bucket*> &buckets_to_insert, std::uint32_t bucket_number, std::string key, std::string value) {
-            
-        //     // Redistribute entries from bucket
-        //     // print_extendible_hash_bucket(bucket, bucket_number, false);
-        //     bucket->local_depth++;
-        //     bucket->entry_count = 0;
-        //     // std::cout << "#" << std::endl;
-        //     std::uint32_t image_number = bucket_number + (1<<(bucket->local_depth-1));
-        //     hash_bucket *image_bucket = new hash_bucket(bucket->local_depth, bucket_entries, image_number);
-        //     // std::cout << "$" << std::endl;
-
-        //     for (uint8_t i = 0; i < bucket_entries; i++) {
-        //         if (!((hash.get_hash(bucket->keys[i]) >> (bucket->local_depth-1)) & 1)) { // Original bucket
-        //             bucket->insert_next(bucket->keys[i], bucket->values[i]);
-        //         }
-        //         else { // Image bucket
-        //             image_bucket->insert_next(bucket->keys[i], bucket->values[i]);
-        //         }
-        //     }
-
-        //     // Insert new value
-        //     hash_value_t new_hash_value = hash.get_hash(key);
-        //     if ((!((new_hash_value >> (bucket->local_depth-1)) & 1)) && bucket->entry_count < bucket_entries) { // Insert new in original bucket
-        //         bucket->insert_next(key, value);
-        //         buckets_to_insert.push_back(image_bucket);
-        //         return 2;
-        //     } else if (((new_hash_value >> (bucket->local_depth-1)) & 1) && image_bucket->entry_count < bucket_entries) { // Insert new in image bucket
-        //         image_bucket->insert_next(key, value);
-        //         buckets_to_insert.push_back(image_bucket);
-        //         return 2;
-        //     }
-
-        //     buckets_to_insert.push_back(image_bucket);
-        //     return (bucket->entry_count < bucket_entries ? 1 : 0); // unable to place new value, retry
-        // }
 
         std::uint8_t calc_new_local_depth(hash_bucket *bucket, const hash_value_t new_hash_value, std::uint32_t bucket_number) {
             // Calculating hash values
@@ -296,22 +263,13 @@ namespace dbindex {
             // std::cout << directory_size() << std::endl;
             for (std::uint32_t b = 0; b < directory_size(); b++){
                 if (directory[b]) {
-                    // std::cout << b << std::endl;
-                    // Deallocate the memory
-                    if (directory[b]->local_depth == global_depth) { // Delete if only one pointer is pointing.
-                        // std::cout << "DG" << std::endl;
-                        delete directory[b];
-                    } else { 
-                        // std::cout << "DNG" << std::endl;
-                        std::uint32_t mask = (create_bit_mask(global_depth-directory[b]->local_depth-1)<<(directory[b]->local_depth));
-                        // std::cout << "LD: " << (int)directory[b]->local_depth << ", diff: " << global_depth-directory[b]->local_depth-1 << ", mask: " << mask << std::endl;
-                        if ((mask & b) == mask) { // Delete if is last pointer to bucket
-                            delete directory[b];
-                        }
-                    }
-                    
-                    // void actual pointer
-                    directory[b] = NULL;
+                    if (directory[b]->original_index != b)
+                        directory[b] = NULL;
+                }
+            }
+            for (std::uint32_t b = 0; b < directory_size(); b++){
+                if (directory[b]) {
+                    delete directory[b];
                 }
             }
         }
@@ -327,7 +285,6 @@ namespace dbindex {
             for (std::uint8_t j = 0; j < bucket_entries; j++)
                 std::cout << "_______";
             std::cout << "_______" << "_______" << "_______" << "_______" << std::endl;
-            std::cout << "DONE:" << std::endl;
         }
         void print_extendible_hash_bucket(hash_bucket* bucket, std::uint32_t i, bool exclusive) {
             std::string text;
@@ -349,10 +306,13 @@ namespace dbindex {
             for (std::uint8_t j = 0; j < bucket_entries; j++)
             {
                 if (!exclusive || bucket->original_index == i){
-                    if (j >= bucket->entry_count)
+                    if (j >= bucket->entry_count) {
                         text += "     | ";
-                    else
+                    }
+                    else {
+                        hash.get_hash(bucket->keys[j]);
                         text += ((bucket->keys[j].length() < 2 ? "   " : (bucket->keys[j].length() < 3 ? "  " : (bucket->keys[j].length() < 4 ? " " : ""))) + bucket->keys[j] + ": " + std::to_string(hash.get_hash(bucket->keys[j]))) + " | ";
+                    }
                 }
                 else 
                     text += "     | ";

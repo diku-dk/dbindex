@@ -190,8 +190,8 @@ void test_workload_a(std::uint8_t thread_count, std::string workload_string, std
       std::cout << "Something failed" << std::endl;
     out_file.close();
 
-    if (hash) delete hash;
     if (hash_table) delete hash_table;
+    if (hash) delete hash;
 }
 
 int main(int argc, char *argv[]) {
