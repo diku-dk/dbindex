@@ -1,7 +1,7 @@
 CXX = g++
-CXXFLAGS = -std=c++11 -Wall -MMD -fno-omit-frame-pointer -g 
-LDFLAGS = -lpthread -lboost_system -lboost_thread -lgtest -lcppunit
-LDTESTFLAG = 
+CXXFLAGS = -std=c++11 -Wall -MMD -fno-omit-frame-pointer -g
+LDFLAGS = -lpthread -lboost_system -lboost_thread -lgtest
+LDTESTFLAG = -lcppunit 
 OPTFLAG = -03 -funroll-loops
 BUILD_DIR = bin
 OBJ_DIR = $(BUILD_DIR)/objs
@@ -30,7 +30,7 @@ $(BUILD_DIR)/benchmarks/%.o : $(BENCHMARK_SRC)/%.cc $(BASIC_OBJS)
 
 $(BUILD_DIR)/test/% : $(TEST_DIR)/%.cc $(BASIC_OBJS) $(BENCHMARK_OBJS)
 	@mkdir -p $(@D)
-	$(CXX) $(CXXFLAGS) $< -o $@ $(LDFLAGS) $(LDTESTFLAG) $(BASIC_OBJS) $(BENCHMARK_OBJS)
+	$(CXX) $(CXXFLAGS) $< -o $@ $(BASIC_OBJS) $(BENCHMARK_OBJS) $(LDFLAGS) $(LDTESTFLAG)
 
 .PHONY : check clean rebuild
 

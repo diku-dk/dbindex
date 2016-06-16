@@ -36,8 +36,8 @@ class workload {
     std::uint32_t get_operation_count() { return operation_count; }
     
     workload() :
-        value_len_generator(NULL), key_generator(NULL), key_selector(NULL),
-        scan_len_selector(NULL), insert_sequence_generator(0) {}
+        value_len_generator(nullptr), key_generator(nullptr), key_selector(nullptr),
+        scan_len_selector(nullptr), insert_sequence_generator(0) {}
     
     ~workload() {
         if (value_len_generator) delete value_len_generator;

@@ -122,11 +122,10 @@ namespace dbindex {
                         } else {
                             auto input_val = inputs[i].first;
                             EXPECT_TRUE(
-                                    inputs[i].second
-                                            == hash_fn.get_hash(
-                                                    std::string(
-                                                            reinterpret_cast<char*>(&input_val),
-                                                            sizeof(input_val))));
+                                    inputs[i].second == hash_fn.get_hash(
+                                            std::string(
+                                                    reinterpret_cast<char*>(&input_val),
+                                                    sizeof(input_val))));
                         }
                     }
 
@@ -139,8 +138,7 @@ namespace dbindex {
             std::uniform_int_distribution<input_key_t> distribution(
                     std::numeric_limits<input_key_t>::min(),
                     std::numeric_limits<input_key_t>::max());
-            std::function<input_key_t()> input_gen_fn { std::bind(distribution,
-                    generator) };
+            std::function<input_key_t()> input_gen_fn { std::bind(distribution, generator) };
 
             dbindex::mod_hash<hash_value_t, MOD_HASH_MOD_VAL> mod_hash;
             test_equality_of_hash_function(mod_hash, input_gen_fn);
@@ -152,31 +150,29 @@ namespace dbindex {
             std::uniform_int_distribution<input_key_t> distribution(
                     std::numeric_limits<input_key_t>::min(),
                     std::numeric_limits<input_key_t>::max());
-            std::function<input_key_t()> input_gen_fn { std::bind(distribution,
-                    generator) };
+            std::function<input_key_t()> input_gen_fn { std::bind(distribution, generator) };
 
             dbindex::mult_shift_hash<hash_value_t> mult_shift_hash;
             test_equality_of_hash_function(mult_shift_hash, input_gen_fn);
         }
 
-        /*        TEST_F(hash_function_test, equality_murmur_hash_32) {
-         std::default_random_engine generator;
-         std::uniform_int_distribution<input_key_t> distribution(
-         std::numeric_limits<input_key_t>::min(),
-         std::numeric_limits<input_key_t>::max());
-         std::function<input_key_t()> input_gen_fn {std::bind(distribution,generator)};
+        TEST_F(hash_function_test, equality_murmur_hash_32) {
+            std::default_random_engine generator;
+            std::uniform_int_distribution<input_key_t> distribution(
+            std::numeric_limits<input_key_t>::min(),
+            std::numeric_limits<input_key_t>::max());
+            std::function<input_key_t()> input_gen_fn {std::bind(distribution,generator)};
 
-         dbindex::murmur_hash_32<hash_value_t> murmur_hash_32;
-         test_equality_of_hash_function(murmur_hash_32, input_gen_fn);
-         }
-         */
+            dbindex::murmur_hash_32<hash_value_t> murmur_hash_32;
+            test_equality_of_hash_function(murmur_hash_32, input_gen_fn);
+        }
+         
         TEST_F(hash_function_test, equality_tabulation_hash) {
             std::default_random_engine generator;
             std::uniform_int_distribution<input_key_t> distribution(
                     std::numeric_limits<input_key_t>::min(),
                     std::numeric_limits<input_key_t>::max());
-            std::function<input_key_t()> input_gen_fn { std::bind(distribution,
-                    generator) };
+            std::function<input_key_t()> input_gen_fn { std::bind(distribution, generator) };
             dbindex::tabulation_hash<hash_value_t, MAX_KEY_LEN_VAL> tabulation_hash;
             test_equality_of_hash_function(tabulation_hash, input_gen_fn);
         }
@@ -186,8 +182,7 @@ namespace dbindex {
             std::uniform_int_distribution<input_key_t> distribution(
                     std::numeric_limits<input_key_t>::min(),
                     std::numeric_limits<input_key_t>::max());
-            std::function<input_key_t()> input_gen_fn { std::bind(distribution,
-                    generator) };
+            std::function<input_key_t()> input_gen_fn { std::bind(distribution, generator) };
 
             dbindex::mod_hash<hash_value_t, MOD_HASH_MOD_VAL> mod_hash;
             test_spread_of_hash_function(mod_hash, input_gen_fn);
@@ -198,31 +193,29 @@ namespace dbindex {
             std::uniform_int_distribution<input_key_t> distribution(
                     std::numeric_limits<input_key_t>::min(),
                     std::numeric_limits<input_key_t>::max());
-            std::function<input_key_t()> input_gen_fn { std::bind(distribution,
-                    generator) };
+            std::function<input_key_t()> input_gen_fn { std::bind(distribution, generator) };
 
             dbindex::mult_shift_hash<hash_value_t> mult_shift_hash;
             test_spread_of_hash_function(mult_shift_hash, input_gen_fn);
         }
-        /*
-         TEST_F(hash_function_test, spread_murmur_hash_32) {
-         std::default_random_engine generator;
-         std::uniform_int_distribution<input_key_t> distribution(
-         std::numeric_limits<input_key_t>::min(),
-         std::numeric_limits<input_key_t>::max());
-         std::function<input_key_t()> input_gen_fn {std::bind(distribution,generator)};
+        
+        TEST_F(hash_function_test, spread_murmur_hash_32) {
+            std::default_random_engine generator;
+            std::uniform_int_distribution<input_key_t> distribution(
+                    std::numeric_limits<input_key_t>::min(),
+                    std::numeric_limits<input_key_t>::max());
+            std::function<input_key_t()> input_gen_fn {std::bind(distribution,generator)};
 
-         dbindex::murmur_hash_32<hash_value_t> murmur_hash_32;
-         test_spread_of_hash_function(murmur_hash_32, input_gen_fn);
-         }
-         */
+            dbindex::murmur_hash_32<hash_value_t> murmur_hash_32;
+            test_spread_of_hash_function(murmur_hash_32, input_gen_fn);
+        }
+         
         TEST_F(hash_function_test, spread_tabulation_hash) {
             std::default_random_engine generator;
             std::uniform_int_distribution<input_key_t> distribution(
                     std::numeric_limits<input_key_t>::min(),
                     std::numeric_limits<input_key_t>::max());
-            std::function<input_key_t()> input_gen_fn { std::bind(distribution,
-                    generator) };
+            std::function<input_key_t()> input_gen_fn { std::bind(distribution, generator) };
             dbindex::tabulation_hash<hash_value_t, MAX_KEY_LEN_VAL> tabulation_hash;
             test_spread_of_hash_function(tabulation_hash, input_gen_fn);
         }

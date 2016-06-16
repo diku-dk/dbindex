@@ -142,8 +142,8 @@ void test_workload_a(std::uint8_t thread_count, std::string workload_string, std
     // Calculating the hashing
     std::uint32_t iterations = 25;
 
-    std::uint32_t thread_total_duration;
-    std::uint32_t durations[iterations*thread_count];
+    std::uint32_t thread_total_throughput;
+    std::uint32_t throughputs[iterations*thread_count];
 
     std::cout << "Opening file" << std::endl;
         // Opening Data File
@@ -165,24 +165,24 @@ void test_workload_a(std::uint8_t thread_count, std::string workload_string, std
         for(std::uint32_t i = 0; i < iterations; i++) 
         {
             std::cout << "Iteration: " << i << std::endl;
-            durations[(t-1)*iterations + i] = client.run_transactions(t);;
-            // std::cout << i << ": " <<  durations[(t-1)*iterations + i] << std::endl;
+            throughputs[(t-1)*iterations + i] = workload.operation_count*1000/client.run_transactions(t);;
+            // std::cout << i << ": " <<  throughputs[(t-1)*iterations + i] << std::endl;
         }
         // Calculating the performance
-        thread_total_duration = 0;
+        thread_total_throughput = 0;
         for(std::uint32_t i = 0; i < iterations; i++) 
-            thread_total_duration += durations[(t-1)*iterations + i];
-        double mean = thread_total_duration / iterations;
+            thread_total_throughput += throughputs[(t-1)*iterations + i];
+        double mean = thread_total_throughput / iterations;
         double var = 0.0;
         for(std::uint32_t i = 0; i < iterations; i++)
         {
-            var += (durations[(t-1)*iterations + i]-mean)*(durations[(t-1)*iterations + i]-mean);
+            var += (throughputs[(t-1)*iterations + i]-mean)*(throughputs[(t-1)*iterations + i]-mean);
         }
         var /= iterations;
-        std::cout << "Avg: " << (thread_total_duration / iterations) << std::endl;
+        std::cout << "Avg Throughput: " << mean << " operations/second." << std::endl;
 
         // Writing data to file
-        out_file << t << "\t" << mean << "\t" << var << "\n";
+        // out_file << t << "\t" << workload.operation_count*1000/mean << "\t" << var << "\n";
         std::cout << "Data written" << std::endl;
     }
     out_file.flush();
@@ -200,14 +200,37 @@ int main(int argc, char *argv[]) {
     std::uint8_t hash_index_num = 0;
     std::uint8_t thread_count   = 16;
 
-    if (argc > 1)
-        workload_string = argv[1];
-
-    if (argc > 2)
-        hash_func_num = (std::uint8_t)(argv[2][0]-'0');
-
-    if (argc > 3)
-        hash_index_num = (std::uint8_t)(argv[3][0]-'0');
+    if (argc < 5) {
+        std::cout << "You must provide the following arguments:\n\t1. Workload\n\t2. Hash function\n\t3. Hash index\n\t4. Thread count\n" << std::endl;
+        std::cout << "Valid workloads (string):" << std::endl;
+        std::cout << "\t- workload_a      =  50% Read, 50% Update" << std::endl;
+        std::cout << "\t- workload_b      =  95% Read,  5% Update w/ ZIPFIAN distribution" << std::endl;
+        std::cout << "\t- workload_c      = 100% Read" << std::endl;
+        std::cout << "\t- workload_d      =  95% Read,  5% Update w/ LATEST distribution" << std::endl;
+        std::cout << "\t- workload_e      =  95% Scan,  5% Inserts " << std::endl;
+        std::cout << "\t- workload_f      =  50% Read, 50% Read-Modify-Write" << std::endl;
+        std::cout << std::endl;
+        std::cout << "\t- workload_read   = 100% Read" << std::endl;
+        std::cout << "\t- workload_update = 100% Update" << std::endl;
+        std::cout << "\t- workload_scan   = 100% Scan" << std::endl;
+        std::cout << "\t- workload_insert = 100% Insert" << std::endl;
+        std::cout << "\t- workload_rmf    = 100% Read-Modify-Write" << std::endl;
+        std::cout << std::endl;
+        std::cout << "Hash function options (integer):" << std::endl;
+        std::cout << "\t- 0 = Mod" << std::endl;
+        std::cout << "\t- 1 = Murmur" << std::endl;
+        std::cout << "\t- 2 = Tabulation" << std::endl;
+        std::cout << std::endl;
+        std::cout << "Hash index options (integer):" << std::endl;
+        std::cout << "\t- 0 = Array" << std::endl;
+        std::cout << "\t- 1 = Extendible" << std::endl;
+        std::cout << "\t- 2 = Partitioned Array" << std::endl;
+        return 0;
+    }
+    workload_string = argv[1];
+    hash_func_num   = (std::uint8_t)(argv[2][0]-'0');
+    hash_index_num  = (std::uint8_t)(argv[3][0]-'0');
+    thread_count    = (std::uint8_t)(argv[4][0]-'0');
 
 
     test_workload_a(thread_count, workload_string, hash_func_num, hash_index_num);

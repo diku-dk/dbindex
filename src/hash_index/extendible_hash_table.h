@@ -208,7 +208,6 @@ namespace dbindex {
                 std::cout << "new_local_depth " << (std::int32_t)new_local_depth << std::endl;
                 throw "Overflow Bucket";
             }
-            std::cout << "Global exclusive" << (int)new_local_depth << std::endl;
 
             local_exclusive_lock.unlock();
             global_shared_lock.unlock();
@@ -272,7 +271,7 @@ namespace dbindex {
             for (std::uint32_t b = 0; b < directory_size(); b++){
                 if (directory[b]) {
                     if (directory[b]->original_index != b)
-                        directory[b] = NULL;
+                        directory[b] = nullptr;
                 }
             }
             for (std::uint32_t b = 0; b < directory_size(); b++){

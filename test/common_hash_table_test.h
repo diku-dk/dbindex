@@ -339,7 +339,7 @@ namespace dbindex {
 
 			std::string first_key = "";
 
-			hash_table.range_scan(first_key, NULL, po);
+			hash_table.range_scan(first_key, nullptr, po);
 			for (auto value : po.get()) {
 				is_valid &= (std::find(valid_values.begin(), valid_values.end(), value) != valid_values.end());
 			}

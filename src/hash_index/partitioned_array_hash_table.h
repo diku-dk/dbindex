@@ -159,13 +159,13 @@ namespace dbindex {
 				} else { // Multiple partitions
 					// std::cout << "4141" << std::endl;
 					// std::cout << "spr: " << start_prefix_result << ", hta: " << hash_table_amount << std::endl;
-					hash_tables[start_prefix_result].range_scan(start_suffix_key, NULL, po);
+					hash_tables[start_prefix_result].range_scan(start_suffix_key, nullptr, po);
 					// std::cout << "First bucket: " << start_prefix_result << ", then buckets: ";
 					// std::cout << "4142" << std::endl;
 					for (std::uint32_t i = start_prefix_result+1; i < end_prefix_result; i++) {
 						// std::cout << i << ", ";
 						po.set_prefix(generate_key_prefix(i));
-						hash_tables[i].range_scan("", NULL, po);
+						hash_tables[i].range_scan("", nullptr, po);
 					}
 					// std::cout << "\nFinally bucket: " << end_prefix_result << std::endl;
 					// std::cout << "4143" << std::endl;
@@ -176,12 +176,12 @@ namespace dbindex {
 			} else { // Open-ended scan
 				// std::cout << "421" << std::endl;
 				// std::cout << "First bucket: " << start_prefix_result << ", then buckets: ";
-				hash_tables[start_prefix_result].range_scan(start_suffix_key, NULL, po);
+				hash_tables[start_prefix_result].range_scan(start_suffix_key, nullptr, po);
 				// std::cout << "422" << std::endl;
 				for (std::uint32_t i = start_prefix_result+1; i < hash_table_amount; i++) {
 					// std::cout << i << ", ";
 					po.set_prefix(generate_key_prefix(i));
-					hash_tables[i].range_scan("", NULL, po);
+					hash_tables[i].range_scan("", nullptr, po);
 				}
 				// std::cout << "424" << std::endl;
 			}
@@ -241,13 +241,13 @@ namespace dbindex {
 				} else { // Multiple partitions
 					// std::cout << "4141" << std::endl;
 					// std::cout << "spr: " << start_prefix_result << ", hta: " << hash_table_amount << std::endl;
-					hash_tables[start_prefix_result].reverse_range_scan(start_suffix_key, NULL, po);
+					hash_tables[start_prefix_result].reverse_range_scan(start_suffix_key, nullptr, po);
 					// std::cout << "First bucket: " << start_prefix_result << ", then buckets: ";
 					// std::cout << "4142" << std::endl;
 					for (std::uint32_t i = start_prefix_result+1; i < end_prefix_result; i++) {
 						// std::cout << i << ", ";
 						po.set_prefix(generate_key_prefix(i));
-						hash_tables[i].reverse_range_scan("", NULL, po);
+						hash_tables[i].reverse_range_scan("", nullptr, po);
 					}
 					// std::cout << "\nFinally bucket: " << end_prefix_result << std::endl;
 					// std::cout << "4143" << std::endl;
@@ -258,12 +258,12 @@ namespace dbindex {
 			} else { // Open-ended scan
 				// std::cout << "421" << std::endl;
 				// std::cout << "First bucket: " << start_prefix_result << ", then buckets: ";
-				hash_tables[start_prefix_result].reverse_range_scan(start_suffix_key, NULL, po);
+				hash_tables[start_prefix_result].reverse_range_scan(start_suffix_key, nullptr, po);
 				// std::cout << "422" << std::endl;
 				for (std::uint32_t i = start_prefix_result+1; i < hash_table_amount; i++) {
 					// std::cout << i << ", ";
 					po.set_prefix(generate_key_prefix(i));
-					hash_tables[i].reverse_range_scan("", NULL, po);
+					hash_tables[i].reverse_range_scan("", nullptr, po);
 				}
 				// std::cout << "424" << std::endl;
 			}

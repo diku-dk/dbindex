@@ -53,7 +53,7 @@ namespace dbindex {
 	public:
 		array_hash_table(abstract_hash<hash_value_t>& _hash) : hash(_hash) {
 			for (std::uint32_t b = 0; b < directory_size; b++) {
-				directory[b] = NULL;
+				directory[b] = nullptr;
 			}
 		}
 		array_hash_table( array_hash_table&& ) = default; // Move constructor
@@ -64,7 +64,7 @@ namespace dbindex {
 					// Deallocate the memory
 					delete directory[b];
 					// void actual pointer
-					directory[b] = NULL;
+					directory[b] = nullptr;
 				}
 			}
 		}
