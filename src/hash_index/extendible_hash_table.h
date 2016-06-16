@@ -4,6 +4,7 @@
 #include <iostream>
 #include <strings.h>
 #include <functional>
+#include <algorithm>
 #include <queue>
 #include <vector>
 #include <boost/thread.hpp>
@@ -47,8 +48,6 @@ namespace dbindex {
             void set_equal_to_copy(const hash_bucket &other){
                 local_depth  = other.local_depth;
                 entry_count  = other.entry_count;
-                if (entry_count > bucket_entries)
-                    throw ("Trying to overflow bucket: " + std::to_string(original_index));
                 std::copy(&other.keys[0], &other.keys[bucket_entries], &keys[0]);
                 std::copy(&other.values[0], &other.values[bucket_entries], &values[0]);
             }
@@ -56,8 +55,6 @@ namespace dbindex {
                 keys  [entry_count] = new_key;
                 values[entry_count] = new_value;
                 entry_count++;
-                if (entry_count > bucket_entries)
-                    throw ("Trying to overflow bucket: " + std::to_string(original_index));
             }
 
             void move_last_to(std::uint32_t i) {
@@ -133,10 +130,13 @@ namespace dbindex {
 
         std::uint8_t calc_new_local_depth(hash_bucket *bucket, const hash_value_t new_hash_value, std::uint32_t bucket_number) {
             // Calculating hash values
+            int greatest_msb = 0;
             hash_value_t hash_values[bucket_entries+1];
             for (std::uint8_t e = 0; e < bucket_entries; e++) {
                 hash_values[e] = hash.get_hash(bucket->keys[e]);
+                greatest_msb = std::min(greatest_msb, __builtin_clz(hash_values[e]));
             }
+            greatest_msb = sizeof(std::uint32_t)*8 - greatest_msb;
             hash_values[bucket_entries] = new_hash_value;
 
             // Checking common digits
@@ -149,27 +149,31 @@ namespace dbindex {
                     common_digit_nums += (hash_values[e] >> (new_local_depth-1)) & 1;
                 }
             }
-            while (common_digit_nums == 0 || common_digit_nums == bucket_entries+1);
+            while (new_local_depth < greatest_msb && (common_digit_nums == 0 || common_digit_nums == bucket_entries+1));
 
-            // Secondary calculation
-            hash_value_t max_hash_value = 0;
-            for (std::uint8_t e = 0; e < bucket_entries+1; e++) {
-                if (max_hash_value < hash_values[e]) {
-                    max_hash_value = hash_values[e];
-                    // std::cout << "New Max: " << max_hash_value << std::endl;
-                }
-            }
-            // std::cout << "Max: " << max_hash_value << std::endl;
-            hash_value_t diff_or = 0;
-            for (std::uint8_t e = 0; e < bucket_entries+1; e++) {
-                diff_or |= (max_hash_value - hash_values[e]);
-            }
+            if (new_local_depth == greatest_msb)
+                return -1; // Overflow bucket needed
+
+            // // Secondary calculation
+            // hash_value_t max_hash_value = 0;
+            // for (std::uint8_t e = 0; e < bucket_entries+1; e++) {
+            //     if (max_hash_value < hash_values[e]) {
+            //         max_hash_value = hash_values[e];
+            //         // std::cout << "New Max: " << max_hash_value << std::endl;
+            //     }
+            // }
+            // // std::cout << "Max: " << max_hash_value << std::endl;
+            // hash_value_t diff_or = 0;
+            // for (std::uint8_t e = 0; e < bucket_entries+1; e++) {
+            //     diff_or |= (max_hash_value - hash_values[e]);
+            // }
             return new_local_depth;
         }
 
         void insert_internal_shared(const std::string& key, const std::string& new_value) {
             boost::shared_lock<boost::shared_mutex> global_shared_lock(global_mutex);
             hash_value_t hash_value = hash.get_hash(key);
+            // std::cout << "Key: " << key << ", hash_value: " <<  hash_value << std::endl;
             std::uint32_t bucket_number = directory[hash_value & create_bit_mask(global_depth-1)]->original_index;
 
             boost::unique_lock<boost::shared_mutex> local_exclusive_lock(directory[bucket_number]->local_mutex);
@@ -185,8 +189,8 @@ namespace dbindex {
                 global_shared_lock.unlock();
                 return;
             } 
-
-            if (calc_new_local_depth(directory[bucket_number], hash_value, bucket_number) <= global_depth) {
+            std::uint8_t new_local_depth = calc_new_local_depth(directory[bucket_number], hash_value, bucket_number);
+            if (new_local_depth <= global_depth) {
                 std::vector<hash_bucket*> buckets_to_insert = create_split_buckets(directory[bucket_number], bucket_number, key, new_value);
 
                 for (typename std::vector<hash_bucket*>::iterator it = buckets_to_insert.begin(); it != buckets_to_insert.end(); ++it) {
@@ -200,7 +204,11 @@ namespace dbindex {
                 local_exclusive_lock.unlock();
                 global_shared_lock.unlock();
                 return;
+            } else if (new_local_depth == 255) {
+                std::cout << "new_local_depth " << (std::int32_t)new_local_depth << std::endl;
+                throw "Overflow Bucket";
             }
+            std::cout << "Global exclusive" << (int)new_local_depth << std::endl;
 
             local_exclusive_lock.unlock();
             global_shared_lock.unlock();

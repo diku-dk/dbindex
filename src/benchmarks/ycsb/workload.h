@@ -129,7 +129,7 @@ inline void workload::do_transaction_read(dbindex::abstract_index& hash_index) {
 
 
 inline void workload::do_transaction_insert(dbindex::abstract_index& hash_index) {
-    const std::string& key = next_transaction_key();
+    const std::string& key = std::to_string(key_selector->next());
     std::string value;
 
     build_value(value);

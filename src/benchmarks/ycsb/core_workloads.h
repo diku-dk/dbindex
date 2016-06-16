@@ -113,7 +113,7 @@ static const workload_properties workload_update = {
 static const workload_properties workload_scan = {
     10000, 100000,
     0, 0, 1, 0, 0, 
-    distribution_type::ZIPFIAN, distribution_type::UNUSED, 
+    distribution_type::ZIPFIAN, distribution_type::UNIFORM, 
     0, 100
 };
 static const workload_properties workload_insert = {
