@@ -27,100 +27,65 @@
  *  Author: Vivek Shah <bonii @ di.ku.dk>
  */
 
-#include <cppunit/TextTestRunner.h>
-#include <cppunit/TestFixture.h>
-#include <cppunit/TestAssert.h>
-#include <cppunit/TestCaller.h>
-#include <cppunit/TestSuite.h>
-#include <cppunit/TestResult.h>
-#include <cppunit/TestResultCollector.h>
-#include <cppunit/TextTestProgressListener.h>
+#include <gtest/gtest.h>
 #include <vector>
 #include <cstdint>
 #include <memory>
 #include <utility>
 #include <random>
+#include <algorithm>
 #include <limits>
 #include <cmath>
-#include "../src/hash_functions/mod_hash.h"
-#include "../src/hash_functions/mult_shift_hash.h"
-#include "../src/hash_functions/murmur_hash_32.h"
-#include "../src/hash_functions/tabulation_hash.h"
+#include <functional>
+#include <cmath>
 #include <boost/accumulators/accumulators.hpp>
 #include <boost/accumulators/statistics/mean.hpp>
 #include <boost/accumulators/statistics/variance.hpp>
 #include <boost/accumulators/accumulators.hpp>
 #include <boost/ref.hpp>
 #include <boost/accumulators/statistics/skewness.hpp>
+#include "../src/hash_functions/mod_hash.h"
+#include "../src/hash_functions/mult_shift_hash.h"
+#include "../src/hash_functions/murmur_hash_32.h"
+#include "../src/hash_functions/tabulation_hash.h"
 
 namespace dbindex {
     namespace test {
-        class hash_function_test: public CppUnit::TestFixture {
-            using hash_value_t = std::uint32_t;
-            using input_key_t = std::uint64_t;
-            static constexpr int MOD_HASH_MOD_VAL = 100;
-            static constexpr int MAX_KEY_LEN_VAL = 64;
-            static constexpr int NUM_EQUALITY_INPUTS = 100;
-            static constexpr int NUM_EQUALITY_ASSERTS = 5;
-            static constexpr int NUM_SPREAD_ITERATIONS = 10;
-            static constexpr int NUM_SPREAD_INPUTS = 20000;
-            static constexpr int NUM_SPREAD_BUCKETS = 100;
-            static constexpr float ACCEPTABLE_DEV_MEAN_RATIO = .1;
-        private:
-            std::vector<std::unique_ptr<dbindex::abstract_hash<hash_value_t>>>hash_functions;
+        using hash_value_t = std::uint32_t;
+        using input_key_t = std::uint64_t;
+        static constexpr int MOD_HASH_MOD_VAL = 100;
+        static constexpr int MAX_KEY_LEN_VAL = 64;
+        static constexpr int NUM_EQUALITY_INPUTS = 20000;
+        static constexpr int NUM_EQUALITY_ASSERTS = 10;
+        static constexpr int NUM_SPREAD_ITERATIONS = 10;
+        static constexpr int NUM_SPREAD_INPUTS = 20000;
+        static constexpr int NUM_SPREAD_BUCKETS = 100;
+        static constexpr float ACCEPTABLE_DEV_MEAN_RATIO = .1;
 
-    public:
-        void setUp() {
-            // hash_functions.emplace_back(std::unique_ptr<dbindex::abstract_hash<hash_value_t>>(new dbindex::mod_hash<hash_value_t,MOD_HASH_MOD_VAL>()));
-            // hash_functions.emplace_back(std::unique_ptr<dbindex::abstract_hash<hash_value_t>>(new dbindex::mult_shift_hash<hash_value_t>()));
-            hash_functions.emplace_back(std::unique_ptr<dbindex::abstract_hash<hash_value_t>>(new dbindex::murmur_hash_32<hash_value_t>()));
-            hash_functions.emplace_back(std::unique_ptr<dbindex::abstract_hash<hash_value_t>>(new dbindex::tabulation_hash<hash_value_t, MAX_KEY_LEN_VAL>()));
-        }
-
-        void tearDown() {
-
-        }
-
-        void test_equality() {
-            std::vector<std::pair<input_key_t,hash_value_t>> inputs {NUM_EQUALITY_INPUTS};
-            std::default_random_engine generator;
-            std::uniform_int_distribution<input_key_t> distribution(std::numeric_limits<input_key_t>::min(), std::numeric_limits<input_key_t>::max());
-            for(auto& a_hash_fn : hash_functions) {
-                for(int iteration = 0; iteration < NUM_EQUALITY_ASSERTS; iteration++) {
-                    for(int i=0;i<NUM_EQUALITY_INPUTS;i++) {
-                        if(iteration == 0) {
-                            //Compute and store
-                            auto input_val = distribution(generator);
-                            inputs[i] = std::make_pair(input_val, a_hash_fn->get_hash(std::string(reinterpret_cast<char*>(&input_val), sizeof(input_val))));
-                        } else {
-                            auto input_val = inputs[i].first;
-                            CPPUNIT_ASSERT(inputs[i].second == a_hash_fn->get_hash(std::string(reinterpret_cast<char*>(&input_val), sizeof(input_val))));
-                        }
-                    }
-
-                }
-            }
-        }
-
-        void test_spread() {
-            static_assert(NUM_SPREAD_BUCKETS < NUM_SPREAD_INPUTS, "Buckets must be less than inputs");
-            std::default_random_engine generator;
-            std::uniform_int_distribution<input_key_t> distribution(std::numeric_limits<input_key_t>::min(), std::numeric_limits<input_key_t>::max());
-            for(auto& hash_fn : hash_functions) {
+        class hash_function_test: public ::testing::Test {
+        public:
+            void test_spread_of_hash_function(
+                    dbindex::abstract_hash<hash_value_t>& hash_fn,
+                    std::function<input_key_t()>& input_generator) {
+                static_assert(NUM_SPREAD_BUCKETS < NUM_SPREAD_INPUTS, "Buckets must be less than inputs");
                 std::vector<std::uint64_t> histogram(NUM_SPREAD_BUCKETS);
                 int failed_iterations = 0;
-                for (int iteration = 0; iteration < NUM_SPREAD_ITERATIONS; iteration++) {
+                for (int iteration = 0; iteration < NUM_SPREAD_ITERATIONS;
+                        iteration++) {
                     std::fill(histogram.begin(), histogram.end(), 0);
                     for (int i = 0; i < NUM_SPREAD_INPUTS; i++) {
-                        auto input_val = distribution(generator);
-                        auto input_val_string = std::string(reinterpret_cast<char*>(&input_val), sizeof(input_val));
-                        auto hash_val = hash_fn->get_hash(input_val_string);
-                        hash_value_t bucket = hash_val % (hash_value_t) NUM_SPREAD_BUCKETS;
+                        auto input_val = input_generator();
+                        auto input_val_string = std::string(
+                                reinterpret_cast<char*>(&input_val),
+                                sizeof(input_val));
+                        auto hash_val = hash_fn.get_hash(input_val_string);
+                        hash_value_t bucket = hash_val
+                                % (hash_value_t) NUM_SPREAD_BUCKETS;
                         histogram[bucket]++;
                     }
                     //Check spread
-                    boost::accumulators::accumulator_set<double, 
-                    boost::accumulators::features<
+                    boost::accumulators::accumulator_set<double,
+                            boost::accumulators::features<
                                     boost::accumulators::tag::mean,
                                     boost::accumulators::tag::variance>> acc;
                     std::for_each(histogram.begin(), histogram.end(),
@@ -134,30 +99,138 @@ namespace dbindex {
                     //Should do a Chi-Squared test
                 }
 
-                CPPUNIT_ASSERT(failed_iterations < NUM_SPREAD_ITERATIONS / 2);
+                EXPECT_TRUE(failed_iterations < NUM_SPREAD_ITERATIONS / 2);
             }
+
+            void test_equality_of_hash_function(
+                    dbindex::abstract_hash<hash_value_t>& hash_fn,
+                    std::function<input_key_t()>& input_generator) {
+                std::vector<std::pair<input_key_t, hash_value_t>> inputs(
+                        NUM_EQUALITY_INPUTS);
+                for (int iteration = 0; iteration < NUM_EQUALITY_ASSERTS;
+                        iteration++) {
+                    for (int i = 0; i < NUM_EQUALITY_INPUTS; i++) {
+                        if (iteration == 0) {
+                            //Compute and store
+                            auto input_val = input_generator();
+                            inputs[i] =
+                                    std::make_pair(input_val,
+                                            hash_fn.get_hash(
+                                                    std::string(
+                                                            reinterpret_cast<char*>(&input_val),
+                                                            sizeof(input_val))));
+                        } else {
+                            auto input_val = inputs[i].first;
+                            EXPECT_TRUE(
+                                    inputs[i].second
+                                            == hash_fn.get_hash(
+                                                    std::string(
+                                                            reinterpret_cast<char*>(&input_val),
+                                                            sizeof(input_val))));
+                        }
+                    }
+
+                }
+            }
+        };
+
+        TEST_F(hash_function_test, equality_mod_hash) {
+            std::default_random_engine generator;
+            std::uniform_int_distribution<input_key_t> distribution(
+                    std::numeric_limits<input_key_t>::min(),
+                    std::numeric_limits<input_key_t>::max());
+            std::function<input_key_t()> input_gen_fn { std::bind(distribution,
+                    generator) };
+
+            dbindex::mod_hash<hash_value_t, MOD_HASH_MOD_VAL> mod_hash;
+            test_equality_of_hash_function(mod_hash, input_gen_fn);
+
         }
 
-        static CppUnit::Test *suite() {
-            CppUnit::TestSuite *suite_of_tests = new CppUnit::TestSuite(
-                    "hash_function_test");
+        TEST_F(hash_function_test, equality_mult_shift_hash) {
+            std::default_random_engine generator;
+            std::uniform_int_distribution<input_key_t> distribution(
+                    std::numeric_limits<input_key_t>::min(),
+                    std::numeric_limits<input_key_t>::max());
+            std::function<input_key_t()> input_gen_fn { std::bind(distribution,
+                    generator) };
 
-            suite_of_tests->addTest(new CppUnit::TestCaller<hash_function_test>(
-                          "test_equality",
-                          &hash_function_test::test_equality));
-            suite_of_tests->addTest(new CppUnit::TestCaller<hash_function_test>(
-                          "test_spread",
-                          &hash_function_test::test_spread));
-            CppUnit::TestResult result;
-            return suite_of_tests;
+            dbindex::mult_shift_hash<hash_value_t> mult_shift_hash;
+            test_equality_of_hash_function(mult_shift_hash, input_gen_fn);
         }
-    };
-}
+
+        /*        TEST_F(hash_function_test, equality_murmur_hash_32) {
+         std::default_random_engine generator;
+         std::uniform_int_distribution<input_key_t> distribution(
+         std::numeric_limits<input_key_t>::min(),
+         std::numeric_limits<input_key_t>::max());
+         std::function<input_key_t()> input_gen_fn {std::bind(distribution,generator)};
+
+         dbindex::murmur_hash_32<hash_value_t> murmur_hash_32;
+         test_equality_of_hash_function(murmur_hash_32, input_gen_fn);
+         }
+         */
+        TEST_F(hash_function_test, equality_tabulation_hash) {
+            std::default_random_engine generator;
+            std::uniform_int_distribution<input_key_t> distribution(
+                    std::numeric_limits<input_key_t>::min(),
+                    std::numeric_limits<input_key_t>::max());
+            std::function<input_key_t()> input_gen_fn { std::bind(distribution,
+                    generator) };
+            dbindex::tabulation_hash<hash_value_t, MAX_KEY_LEN_VAL> tabulation_hash;
+            test_equality_of_hash_function(tabulation_hash, input_gen_fn);
+        }
+
+        TEST_F(hash_function_test, spread_mod_hash) {
+            std::default_random_engine generator;
+            std::uniform_int_distribution<input_key_t> distribution(
+                    std::numeric_limits<input_key_t>::min(),
+                    std::numeric_limits<input_key_t>::max());
+            std::function<input_key_t()> input_gen_fn { std::bind(distribution,
+                    generator) };
+
+            dbindex::mod_hash<hash_value_t, MOD_HASH_MOD_VAL> mod_hash;
+            test_spread_of_hash_function(mod_hash, input_gen_fn);
+        }
+
+        TEST_F(hash_function_test, spread_mult_shift_hash) {
+            std::default_random_engine generator;
+            std::uniform_int_distribution<input_key_t> distribution(
+                    std::numeric_limits<input_key_t>::min(),
+                    std::numeric_limits<input_key_t>::max());
+            std::function<input_key_t()> input_gen_fn { std::bind(distribution,
+                    generator) };
+
+            dbindex::mult_shift_hash<hash_value_t> mult_shift_hash;
+            test_spread_of_hash_function(mult_shift_hash, input_gen_fn);
+        }
+        /*
+         TEST_F(hash_function_test, spread_murmur_hash_32) {
+         std::default_random_engine generator;
+         std::uniform_int_distribution<input_key_t> distribution(
+         std::numeric_limits<input_key_t>::min(),
+         std::numeric_limits<input_key_t>::max());
+         std::function<input_key_t()> input_gen_fn {std::bind(distribution,generator)};
+
+         dbindex::murmur_hash_32<hash_value_t> murmur_hash_32;
+         test_spread_of_hash_function(murmur_hash_32, input_gen_fn);
+         }
+         */
+        TEST_F(hash_function_test, spread_tabulation_hash) {
+            std::default_random_engine generator;
+            std::uniform_int_distribution<input_key_t> distribution(
+                    std::numeric_limits<input_key_t>::min(),
+                    std::numeric_limits<input_key_t>::max());
+            std::function<input_key_t()> input_gen_fn { std::bind(distribution,
+                    generator) };
+            dbindex::tabulation_hash<hash_value_t, MAX_KEY_LEN_VAL> tabulation_hash;
+            test_spread_of_hash_function(tabulation_hash, input_gen_fn);
+        }
+
+    }
 }
 
 int main(int argc, char **argv) {
-    CppUnit::TextTestRunner runner;
-    runner.addTest(dbindex::test::hash_function_test::suite());
-    runner.run();
-    return 0;
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

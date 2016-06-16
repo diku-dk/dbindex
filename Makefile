@@ -1,12 +1,8 @@
-NUM_TABLES     = -1
-NUM_THREADS    = -1
-
 CXX = g++
-CXXFLAGS = -std=c++14 -Wall -MMD -fno-omit-frame-pointer -g 
-LDFLAGS = -pthread -lboost_system -lboost_thread
-LDTESTFLAG = -lcppunit
-OPTFLAG = -O3 -funroll-loops
-
+CXXFLAGS = -std=c++11 -Wall -MMD -fno-omit-frame-pointer -g 
+LDFLAGS = -lpthread -lboost_system -lboost_thread -lgtest -lcppunit
+LDTESTFLAG = 
+OPTFLAG = -03 -funroll-loops
 BUILD_DIR = bin
 OBJ_DIR = $(BUILD_DIR)/objs
 SRC_DIR = src
@@ -22,31 +18,19 @@ rebuild : clean all
 
 $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cc
 	@mkdir -p $(@D)
-# @echo "OBJ_DIR"
-# @echo $@
-# @echo $^
 	$(CXX) $(CXXFLAGS) -c $< -o $@
-# @echo 
 
 $(OBJ_DIR)/%/%.o : $(SRC_DIR)/%/%.cc
 	@mkdir -p $(@D)
-# @echo "obj_dir2"
 	$(CXX) $(CXXFLAGS) -c $< -o $@
-# @echo 
 
 $(BUILD_DIR)/benchmarks/%.o : $(BENCHMARK_SRC)/%.cc $(BASIC_OBJS)
 	@mkdir -p $(@D)
-# @echo "bench_dir"
 	$(CXX) $(CXXFLAGS) -c $< -o $@ 
-# @echo 
 
-$(BUILD_DIR)/test/% : $(TEST_DIR)/%.cc $(BASIC_OBJS)
+$(BUILD_DIR)/test/% : $(TEST_DIR)/%.cc $(BASIC_OBJS) $(BENCHMARK_OBJS)
 	@mkdir -p $(@D)
-# @echo "TEST_DIR"
-# @echo $@
-# @echo $^
-	$(CXX) $(CXXFLAGS) -DNUM_TABLES_DEF=$(NUM_TABLES) -DNUM_THREADS_DEF=$(NUM_THREADS) $< -o $@ $(LDFLAGS) $(LDTESTFLAG) $(BASIC_OBJS) $(BENCHMARK_OBJS)
-# @echo 
+	$(CXX) $(CXXFLAGS) $< -o $@ $(LDFLAGS) $(LDTESTFLAG) $(BASIC_OBJS) $(BENCHMARK_OBJS)
 
 .PHONY : check clean rebuild
 
