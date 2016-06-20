@@ -105,6 +105,7 @@ std::uint32_t client::run_transactions(std::uint8_t thread_count) {
 
 	std::chrono::_V2::system_clock::time_point min_start = timings[0].start;
 	std::chrono::_V2::system_clock::time_point max_end = timings[0].end;
+        // std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(timings[0].end - timings[0].start).count() << std::endl;
 
 	for(std::uint32_t t = 1; t < thread_count; t++) {
 		if (timings[t].start < min_start) {
@@ -113,6 +114,7 @@ std::uint32_t client::run_transactions(std::uint8_t thread_count) {
 		if (timings[t].end > max_end) {
 			max_end = timings[t].end;
 		}
+	        // std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(timings[t].end - timings[t].start).count() << std::endl;
 	}
 	return std::chrono::duration_cast<std::chrono::milliseconds>(max_end-min_start).count();
 }
