@@ -1,5 +1,7 @@
 #include <string>
+#include <cmath>
 #include <chrono>
+#include <thread>
 #include <fstream>
 #include <iostream>
 
@@ -78,13 +80,10 @@ void test_workload_a(std::uint8_t thread_count, std::string workload_string, std
     using namespace std::chrono;
 
     constexpr size_t directory_size = 1<<10;
-    constexpr size_t initial_global_depht = 2;
+    constexpr size_t initial_global_depht = 10;
     constexpr std::uint8_t prefix_bits = 4;
     constexpr std::uint32_t mod_value = 1<<31;
     constexpr std::uint32_t MAX_KEY_LEN_VAL = 14;
-
-    ycsb::workload_properties workload = parse_workload_string(workload_string);
-
 
     dbindex::abstract_hash<std::uint32_t>* hash;
     dbindex::abstract_index* hash_table;
@@ -136,19 +135,42 @@ void test_workload_a(std::uint8_t thread_count, std::string workload_string, std
     }
     std::cout << "Using " << hash_func_string << " and " << hash_index_string << std::endl;
 
+    ycsb::workload_properties workload = parse_workload_string(workload_string);
+
     ycsb::client client(*hash_table, workload, thread_count);
-    client.run_build_records(1);
-    std::cout << "Records built" << std::endl;
-    // Calculating the hashing
+
     std::uint32_t iterations = 25;
 
     std::uint32_t thread_total_throughput;
     std::uint32_t throughputs[iterations*thread_count];
 
+    if (workload_string == "workload_lock") {
+	auto ops = 100000;
+        for(std::uint32_t t = 0; t < thread_count; t++) {
+            std::cout << "Thread count: " << t << ": " << std::endl;
+            for(std::uint32_t i = 0; i < iterations; i++) 
+            {
+                throughputs[t*iterations + i] = workload.operation_count*1000/client.run_locks(t+1, ops);
+                std::cout << "Iteration: " << i << ": " <<  throughputs[t*iterations + i] << std::endl;
+            }
+            // Calculating the performance
+            thread_total_throughput = 0;
+            for(std::uint32_t i = 0; i < iterations; i++) 
+    	        thread_total_throughput += throughputs[t*iterations + i];
+            double mean = thread_total_throughput / iterations;
+	    std::cout << "Average throughput: " << mean << std::endl;
+	}
+	return;
+    } 
+
+    client.run_build_records(1);
+    std::cout << "Records built" << std::endl;
+    // Calculating the hashing
+
     std::cout << "Opening file" << std::endl;
         // Opening Data File
     std::ofstream out_file;
-    std::string path = "../Thesis/results/local/" + hash_func_string + "_" + hash_index_string + "_" + workload_string + ".txt";
+    std::string path = "../Thesis/results/" + hash_func_string + "_" + hash_index_string + "_" + workload_string + "_no_lock.txt";
     std::cout << path << std::endl;
     out_file.open (path);
     out_file.clear();
@@ -164,9 +186,8 @@ void test_workload_a(std::uint8_t thread_count, std::string workload_string, std
         std::cout << "Thread count: " << t << ": " << std::endl;
         for(std::uint32_t i = 0; i < iterations; i++) 
         {
-            std::cout << "Iteration: " << i << std::endl;
             throughputs[t*iterations + i] = workload.operation_count*1000/client.run_transactions(t+1);
-            // std::cout << i << ": " <<  throughputs[t*iterations + i] << std::endl;
+            std::cout << "Iteration: " << i << ": " <<  throughputs[t*iterations + i] << std::endl;
         }
         // Calculating the performance
         thread_total_throughput = 0;
@@ -179,11 +200,14 @@ void test_workload_a(std::uint8_t thread_count, std::string workload_string, std
             var += (throughputs[t*iterations + i]-mean)*(throughputs[t*iterations + i]-mean);
         }
         var /= iterations;
+        double std_dev = std::sqrt(var);
         std::cout << "Avg Throughput: " << mean << " operations/second." << std::endl;
+        std::cout << "Std Deviation:  " << std_dev << " operations/second." << std::endl;
 
         // Writing data to file
-        out_file << (t+1) << "\t" << mean << "\t" << var << "\n";
+        out_file << (t+1) << "\t" << mean << "\t" << std_dev << "\n";
         std::cout << "Data written" << std::endl;
+	std::this_thread::sleep_for(std::chrono::seconds(2));
     }
     out_file.flush();
     if (out_file.fail())
@@ -230,7 +254,7 @@ int main(int argc, char *argv[]) {
     workload_string = argv[1];
     hash_func_num   = (std::uint8_t)(argv[2][0]-'0');
     hash_index_num  = (std::uint8_t)(argv[3][0]-'0');
-    thread_count    = (std::uint8_t)(argv[4][0]-'0');
+    thread_count    = std::atoi(argv[4]);
 
 
     test_workload_a(thread_count, workload_string, hash_func_num, hash_index_num);

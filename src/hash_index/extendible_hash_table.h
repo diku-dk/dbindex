@@ -154,19 +154,6 @@ namespace dbindex {
             if (new_local_depth == greatest_msb)
                 return -1; // Overflow bucket needed
 
-            // // Secondary calculation
-            // hash_value_t max_hash_value = 0;
-            // for (std::uint8_t e = 0; e < bucket_entries+1; e++) {
-            //     if (max_hash_value < hash_values[e]) {
-            //         max_hash_value = hash_values[e];
-            //         // std::cout << "New Max: " << max_hash_value << std::endl;
-            //     }
-            // }
-            // // std::cout << "Max: " << max_hash_value << std::endl;
-            // hash_value_t diff_or = 0;
-            // for (std::uint8_t e = 0; e < bucket_entries+1; e++) {
-            //     diff_or |= (max_hash_value - hash_values[e]);
-            // }
             return new_local_depth;
         }
 
@@ -260,14 +247,13 @@ namespace dbindex {
 
     public:
         extendible_hash_table(abstract_hash<hash_value_t>& _hash) : hash(_hash) {
-            for (std::uint8_t b = 0; b < directory_size(); b++) {
+            for (std::uint32_t b = 0; b < directory_size(); b++) {
                 hash_bucket *bucket = new hash_bucket(global_depth, bucket_entries, b);
                 directory[b] = bucket;
             }
         }
         ~extendible_hash_table() {
             // print_extendible_hash_table(false);
-            // std::cout << directory_size() << std::endl;
             for (std::uint32_t b = 0; b < directory_size(); b++){
                 if (directory[b]) {
                     if (directory[b]->original_index != b)
@@ -277,6 +263,7 @@ namespace dbindex {
             for (std::uint32_t b = 0; b < directory_size(); b++){
                 if (directory[b]) {
                     delete directory[b];
+		    directory[b] = nullptr;
                 }
             }
         }

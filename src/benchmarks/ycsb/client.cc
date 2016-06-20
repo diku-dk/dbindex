@@ -36,7 +36,8 @@ void do_transactions_concurrent_timed(dbindex::abstract_index& hash_index, workl
 }
 /********* Debugging only, Do delete ***********/
 
-void do_locks_timed(boost::shared_lock<boost::shared_mutex>& local_shared_lock, std::uint32_t operation_count, utils::timing_obj& timing) {
+void do_locks_timed(boost::shared_mutex& shared_mutex, std::uint32_t operation_count, utils::timing_obj& timing) {
+	boost::shared_lock<boost::shared_mutex> local_shared_lock(shared_mutex, boost::defer_lock);
 	timing.set_start(std::chrono::high_resolution_clock::now());
 	for (std::uint32_t i = 0; i < operation_count; i++) {
 		local_shared_lock.lock();
@@ -132,11 +133,10 @@ std::uint32_t client::run_locks(std::uint8_t thread_count, std::uint32_t operati
 	std::thread threads[thread_count];
 	utils::timing_obj timings[thread_count];
 	boost::shared_mutex mutex;
-	boost::shared_lock<boost::shared_mutex> local_shared_lock{mutex, boost::defer_lock};
 	
 	// Transactions - Running the designed workload.
 	for(std::uint32_t t = 0; t < thread_count; t++) {
-		threads[t] = std::thread(do_locks_timed, std::ref(local_shared_lock), operation_count, std::ref(timings[t]));
+		threads[t] = std::thread(do_locks_timed, std::ref(mutex), operation_count, std::ref(timings[t]));
 		utils::stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
 	}
 	for(std::uint32_t t = 0; t < thread_count; t++) {
