@@ -34,6 +34,46 @@ void do_transactions_concurrent_timed(dbindex::abstract_index& hash_index, workl
 	}
 	timing.set_end(std::chrono::high_resolution_clock::now());
 }
+/********* Debugging only, Do delete ***********/
+
+void do_locks_timed(boost::shared_lock<boost::shared_mutex>& local_shared_lock, std::uint32_t operation_count, utils::timing_obj& timing) {
+	timing.set_start(std::chrono::high_resolution_clock::now());
+	for (std::uint32_t i = 0; i < operation_count; i++) {
+		local_shared_lock.lock();
+		local_shared_lock.unlock();
+	}
+	timing.set_end(std::chrono::high_resolution_clock::now());
+}
+
+void do_map_insertions_concurrent(std::map<std::string, std::string>& map, workload& wl, std::uint32_t record_count) {
+	for (std::uint32_t i = 0; i < record_count; i++) {
+		// std::cout << ((double)i*100)/((double)record_count) << "%" << std::endl;
+		std::string key = wl.next_sequence_key();
+	    std::string value;
+	    wl.build_value(value);
+		map.insert(std::pair<std::string, std::string>(key, value));
+	}
+}
+
+void do_map_timed(std::map<std::string, std::string>& map, workload& wl, std::uint32_t operation_count, utils::timing_obj& timing) {
+	timing.set_start(std::chrono::high_resolution_clock::now());
+	for (std::uint32_t i = 0; i < operation_count; i++) {
+		map.find(wl.next_transaction_key());
+	}
+	timing.set_end(std::chrono::high_resolution_clock::now());
+}
+
+void do_data_gen_timed(workload& wl, std::uint32_t operation_count, utils::timing_obj& timing) {
+	timing.set_start(std::chrono::high_resolution_clock::now());
+	for (std::uint32_t i = 0; i < operation_count; i++) {
+    	const std::string& key = wl.next_transaction_key();
+    	std::string value;
+	    wl.build_value(value);
+	}
+	timing.set_end(std::chrono::high_resolution_clock::now());
+}
+
+/********* End of debugging ***********/
 
 void client::run_build_records(std::uint8_t thread_count) {
 	std::thread threads[thread_count];
@@ -77,6 +117,112 @@ std::uint32_t client::run_transactions(std::uint8_t thread_count) {
 	return std::chrono::duration_cast<std::chrono::milliseconds>(max_end-min_start).count();
 }
 
+
+/********* Debugging only, Do delete ***********/
+
+
+// void do_locks_timed(boost::shared_lock<boost::shared_mutex>& local_shared_lock, std::uint32_t operation_count, utils::timing_obj& timing)
+// void do_map_insertions_concurrent(std::map<std::string, std::string>& map, workload& wl, std::uint32_t operation_count)
+// void do_map_timed(std::map<std::string, std::string>& map, workload& wl, std::uint32_t operation_count, utils::timing_obj& timing)
+// void do_data_gen_timed(workload& wl, std::uint32_t operation_count, utils::timing_obj& timing)
+
+std::uint32_t client::run_locks(std::uint8_t thread_count, std::uint32_t operation_count) {
+	std::thread threads[thread_count];
+	utils::timing_obj timings[thread_count];
+	boost::shared_mutex mutex;
+	boost::shared_lock<boost::shared_mutex> local_shared_lock{mutex, boost::defer_lock};
+	
+	// Transactions - Running the designed workload.
+	for(std::uint32_t t = 0; t < thread_count; t++) {
+		threads[t] = std::thread(do_locks_timed, std::ref(local_shared_lock), operation_count, std::ref(timings[t]));
+		utils::stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
+	}
+	for(std::uint32_t t = 0; t < thread_count; t++) {
+		threads[t].join();
+	}
+
+	std::chrono::_V2::system_clock::time_point min_start = timings[0].start;
+	std::chrono::_V2::system_clock::time_point max_end = timings[0].end;
+
+	for(std::uint32_t t = 1; t < thread_count; t++) {
+		if (timings[t].start < min_start) {
+			min_start = timings[t].start;
+		}
+		if (timings[t].end > max_end) {
+			max_end = timings[t].end;
+		}
+	}
+	return std::chrono::duration_cast<std::chrono::milliseconds>(max_end-min_start).count();
+}
+
+void client::run_build_records_map(std::map<std::string, std::string>& shared_map, std::uint8_t thread_count, std::uint32_t record_count) {
+	std::thread threads[thread_count];
+
+	// Insertions 	- Initialization of the index
+	for(std::uint32_t t = 0; t < thread_count; t++) {
+		threads[t] = std::thread(do_map_insertions_concurrent, std::ref(shared_map), std::ref(wl), record_count);
+		utils::stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
+	}
+	for(std::uint32_t t = 0; t < thread_count; t++) {
+		threads[t].join();
+	}
+}
+
+std::uint32_t client::run_map(std::map<std::string, std::string>& shared_map, std::uint8_t thread_count, std::uint32_t operation_count) {
+	std::thread threads[thread_count];
+	utils::timing_obj timings[thread_count];
+	
+	// Transactions - Running the designed workload.
+	for(std::uint32_t t = 0; t < thread_count; t++) {
+		threads[t] = std::thread(do_map_timed, std::ref(shared_map), std::ref(wl), operation_count, std::ref(timings[t]));
+		utils::stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
+	}
+	for(std::uint32_t t = 0; t < thread_count; t++) {
+		threads[t].join();
+	}
+
+	std::chrono::_V2::system_clock::time_point min_start = timings[0].start;
+	std::chrono::_V2::system_clock::time_point max_end = timings[0].end;
+
+	for(std::uint32_t t = 1; t < thread_count; t++) {
+		if (timings[t].start < min_start) {
+			min_start = timings[t].start;
+		}
+		if (timings[t].end > max_end) {
+			max_end = timings[t].end;
+		}
+	}
+	return std::chrono::duration_cast<std::chrono::milliseconds>(max_end-min_start).count();
+}
+
+std::uint32_t client::run_data_gen(std::uint8_t thread_count, std::uint32_t operation_count) {
+	std::thread threads[thread_count];
+	utils::timing_obj timings[thread_count];
+	
+	// Transactions - Running the designed workload.
+	for(std::uint32_t t = 0; t < thread_count; t++) {
+		threads[t] = std::thread(do_data_gen_timed, std::ref(wl), operation_count, std::ref(timings[t]));
+		utils::stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
+	}
+	for(std::uint32_t t = 0; t < thread_count; t++) {
+		threads[t].join();
+	}
+
+	std::chrono::_V2::system_clock::time_point min_start = timings[0].start;
+	std::chrono::_V2::system_clock::time_point max_end = timings[0].end;
+
+	for(std::uint32_t t = 1; t < thread_count; t++) {
+		if (timings[t].start < min_start) {
+			min_start = timings[t].start;
+		}
+		if (timings[t].end > max_end) {
+			max_end = timings[t].end;
+		}
+	}
+	return std::chrono::duration_cast<std::chrono::milliseconds>(max_end-min_start).count();
+}
+
+/********* End of debugging ***********/
 
 std::uint32_t client::run_workload() {
 	std::thread threads[thread_count];
