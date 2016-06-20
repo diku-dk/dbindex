@@ -1,39 +1,48 @@
 reset
 
-# Specify workload, hash_function and hash_index
+fix(x) = 100000000/x
+
+# Specify workload and hash_function
 if (!exists("workload")) workload     = 'workload_a'
 if (!exists("hash_func")) hash_func   = 'tabulation'
-# if (!exists("hash_index")) hash_index = 'array'
 
 name = sprintf('%s_hash_%s', hash_func, workload)
 name_arr = sprintf('%s_hash_array_hash_table_%s', hash_func, workload)
 name_ext = sprintf('%s_hash_extendible_hash_table_%s', hash_func, workload)
+name_par = sprintf('%s_hash_partitioned_array_hash_table_%s', hash_func, workload)
 
 # Set output image position
 set term png enhanced
-set output sprintf('results/graphs/%s.png', name)
+set output sprintf('../Thesis/results/graphs/%s.png', name)
 
 # Setup labels and legend
 set xlabel "Amount of threads"
-set ylabel "Time per run (ms)"
+set ylabel "Throughput (/s)"
 set key box opaque
 set border back
 
 # Calculating stats from file
-stats sprintf('results/%s.txt', name_arr) every ::0 using 2 nooutput
+stats sprintf('../Thesis/results/%s.txt', name_arr) every ::0 using 2 nooutput
 #amount  = int(STATS_records)
 #mean    = int(STATS_mean)
 ymax     = int(STATS_max)
+ymin     = int(STATS_min)
 #std_dev = real(STATS_stddev)
 
-stats sprintf('results/%s.txt', name_arr) every ::0 using 1 nooutput
+stats sprintf('../Thesis/results/%s.txt', name_arr) every ::0 using 1 nooutput
 xmax     = int(STATS_max)
 
 # Making plot
 set xrange [0:xmax]
-set yrange [0:2000]
+set yrange [0:(fix(ymin))*1.5]
+print name
 print ymax
-plot sprintf('results/%s.txt', name_arr) title sprintf('Array-index, %s hashing, %s', hash_func, workload) with errorbars lt rgb "red",\
-	'' notitle with lines lt rgb "red", \
-	sprintf('results/%s.txt', name_ext) title sprintf('Extendible-index, %s hashing, %s', hash_func, workload) with errorbars lt rgb "green", \
-	'' notitle with lines lt rgb "green"
+print fix(ymax)
+
+
+plot sprintf('../Thesis/results/%s.txt', name_arr) using 1:(fix($2)):3 title sprintf('Array-index, %s hashing, %s', hash_func, workload) with errorbars lt rgb "red",\
+	'' using 1:(fix($2)) notitle with lines lt rgb "red", \
+	sprintf('../Thesis/results/%s.txt', name_ext) using 1:(fix($2)):3 title sprintf('Extendible-index, %s hashing, %s', hash_func, workload) with errorbars lt rgb "green", \
+	'' using 1:(fix($2)) notitle with lines lt rgb "green", \
+	sprintf('../Thesis/results/%s.txt', name_par) using 1:(fix($2)):3 title sprintf('Partitioned-array-index, %s hashing, %s', hash_func, workload) with errorbars lt rgb "blue", \
+	'' using 1:(fix($2)) notitle with lines lt rgb "blue"

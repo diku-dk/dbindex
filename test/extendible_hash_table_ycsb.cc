@@ -148,7 +148,7 @@ void test_workload_a(std::uint8_t thread_count, std::string workload_string, std
     std::cout << "Opening file" << std::endl;
         // Opening Data File
     std::ofstream out_file;
-    std::string path = "results/" + hash_func_string + "_" + hash_index_string + "_" + workload_string + ".txt";
+    std::string path = "../Thesis/results/local/" + hash_func_string + "_" + hash_index_string + "_" + workload_string + ".txt";
     std::cout << path << std::endl;
     out_file.open (path);
     out_file.clear();
@@ -160,29 +160,29 @@ void test_workload_a(std::uint8_t thread_count, std::string workload_string, std
 
         // Running experiments 
     std::cout << "Running benchmark with " << workload_to_string(workload) << std::endl;
-    for(std::uint32_t t = 1; t <= thread_count; t++) {
+    for(std::uint32_t t = 0; t < thread_count; t++) {
         std::cout << "Thread count: " << t << ": " << std::endl;
         for(std::uint32_t i = 0; i < iterations; i++) 
         {
             std::cout << "Iteration: " << i << std::endl;
-            throughputs[(t-1)*iterations + i] = workload.operation_count*1000/client.run_transactions(t);;
-            // std::cout << i << ": " <<  throughputs[(t-1)*iterations + i] << std::endl;
+            throughputs[t*iterations + i] = workload.operation_count*1000/client.run_transactions(t+1);
+            // std::cout << i << ": " <<  throughputs[t*iterations + i] << std::endl;
         }
         // Calculating the performance
         thread_total_throughput = 0;
         for(std::uint32_t i = 0; i < iterations; i++) 
-            thread_total_throughput += throughputs[(t-1)*iterations + i];
+            thread_total_throughput += throughputs[t*iterations + i];
         double mean = thread_total_throughput / iterations;
         double var = 0.0;
         for(std::uint32_t i = 0; i < iterations; i++)
         {
-            var += (throughputs[(t-1)*iterations + i]-mean)*(throughputs[(t-1)*iterations + i]-mean);
+            var += (throughputs[t*iterations + i]-mean)*(throughputs[t*iterations + i]-mean);
         }
         var /= iterations;
         std::cout << "Avg Throughput: " << mean << " operations/second." << std::endl;
 
         // Writing data to file
-        // out_file << t << "\t" << workload.operation_count*1000/mean << "\t" << var << "\n";
+        out_file << (t+1) << "\t" << mean << "\t" << var << "\n";
         std::cout << "Data written" << std::endl;
     }
     out_file.flush();

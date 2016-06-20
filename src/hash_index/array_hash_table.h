@@ -4,6 +4,7 @@
 #include <iostream>
 #include <functional>
 #include <queue>
+#include <cstring>
 #include <vector>
 #include <boost/thread.hpp>
 
@@ -106,7 +107,7 @@ namespace dbindex {
 			boost::shared_lock<boost::shared_mutex> local_shared_lock(bucket_mutexes[bucket_number]);
 			if (directory[bucket_number]) {
 				for (uint32_t i = 0; i < directory[bucket_number]->keys.size(); i++) {
-					if (directory[bucket_number]->keys[i] == key) {
+					if (strcmp(directory[bucket_number]->keys[i].c_str(), key.c_str()) == 0) {
 						value = directory[bucket_number]->values[i];
 						local_shared_lock.unlock();
 						return true;
@@ -139,7 +140,7 @@ namespace dbindex {
 			boost::unique_lock<boost::shared_mutex> local_exclusive_lock(bucket_mutexes[bucket_number]);
 			if (directory[bucket_number]) {
 				for (uint32_t i = 0; i < directory[bucket_number]->keys.size(); i++) {
-					if (directory[bucket_number]->keys[i] == key) {
+					if (strcmp(directory[bucket_number]->keys[i].c_str(), key.c_str()) == 0) {
 						directory[bucket_number]->values[i] = new_value;
 						break;
 					}
@@ -155,7 +156,7 @@ namespace dbindex {
 			boost::unique_lock<boost::shared_mutex> local_exclusive_lock(bucket_mutexes[bucket_number]);
 			if (directory[bucket_number]) {
 				for (uint32_t i = 0; i < directory[bucket_number]->keys.size(); i++) {
-					if (directory[bucket_number]->keys[i] == key) { // Entry to be removed found
+					if (strcmp(directory[bucket_number]->keys[i].c_str(), key.c_str()) == 0) { // Entry to be removed found
 						directory[bucket_number]->move_last_to(i);
 						break;
 					}
