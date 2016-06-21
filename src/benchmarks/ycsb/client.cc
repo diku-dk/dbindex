@@ -64,8 +64,8 @@ void do_map_timed(std::map<std::string, std::string>& map, workload& wl, std::ui
 	timing.set_end(std::chrono::high_resolution_clock::now());
 }
 
-void do_map_timed_locked(std::map<std::string, std::string>& map, std::shared_mutex& shared_muted, workload& wl, std::uint32_t operation_count, utils::timing_obj& timing) {
-	boost::shared_lock<boost::shared_mutex> local_shared_lock(shared_mutex, boost::defer_lock);
+void do_map_timed_locked(std::map<std::string, std::string>& map, boost::shared_mutex& mutex, workload& wl, std::uint32_t operation_count, utils::timing_obj& timing) {
+	boost::shared_lock<boost::shared_mutex> local_shared_lock(mutex, boost::defer_lock);
 
 	timing.set_start(std::chrono::high_resolution_clock::now());
 	for (std::uint32_t i = 0; i < operation_count; i++) {
@@ -90,11 +90,10 @@ void do_data_gen_timed(workload& wl, std::uint32_t operation_count, utils::timin
 
 void client::run_build_records(std::uint8_t thread_count) {
 	std::thread threads[thread_count];
-	std::uint32_t thread_record_count = wl.get_record_count() / thread_count;
 
 	// Insertions 	- Initialization of the index
 	for(std::uint32_t t = 0; t < thread_count; t++) {
-		threads[t] = std::thread(do_insertions_concurrent, std::ref(hash_index), std::ref(wl), thread_record_count);
+		threads[t] = std::thread(do_insertions_concurrent, std::ref(hash_index), std::ref(wl), wl.get_record_count());
 		utils::stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
 	}
 	for(std::uint32_t t = 0; t < thread_count; t++) {
@@ -106,10 +105,9 @@ std::uint32_t client::run_transactions(std::uint8_t thread_count) {
 	std::thread threads[thread_count];
 	utils::timing_obj timings[thread_count];
 	
-	std::uint32_t thread_operation_count = wl.get_operation_count() / thread_count;
 	// Transactions - Running the designed workload.
 	for(std::uint32_t t = 0; t < thread_count; t++) {
-		threads[t] = std::thread(do_transactions_concurrent_timed, std::ref(hash_index), std::ref(wl), thread_operation_count, std::ref(timings[t]));
+		threads[t] = std::thread(do_transactions_concurrent_timed, std::ref(hash_index), std::ref(wl), wl.get_operation_count(), std::ref(timings[t]));
 		utils::stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
 	}
 	for(std::uint32_t t = 0; t < thread_count; t++) {
@@ -275,7 +273,7 @@ std::uint32_t client::run_workload() {
 
 	// Insertions 	- Initialization of the index
 	for(std::uint32_t t = 0; t < thread_count; t++) {
-		threads[t] = std::thread(do_insertions_concurrent_timed, std::ref(hash_index), std::ref(wl), thread_record_count, std::ref(timings[t]));
+		threads[t] = std::thread(do_insertions_concurrent_timed, std::ref(hash_index), std::ref(wl), wl.get__record_count(), std::ref(timings[t]));
 		utils::stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
 	}
 	for(std::uint32_t t = 0; t < thread_count; t++) {
@@ -284,7 +282,7 @@ std::uint32_t client::run_workload() {
 
 	// Transactions - Running the designed workload.
 	for(std::uint32_t t = 0; t < thread_count; t++) {
-		threads[t] = std::thread(do_transactions_concurrent_timed, std::ref(hash_index), std::ref(wl), thread_operation_count, std::ref(timings[t]));
+		threads[t] = std::thread(do_transactions_concurrent_timed, std::ref(hash_index), std::ref(wl), wl.get_operation_count(), std::ref(timings[t]));
 		utils::stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
 	}
 	for(std::uint32_t t = 0; t < thread_count; t++) {

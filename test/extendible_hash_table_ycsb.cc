@@ -146,11 +146,22 @@ void test_workload_a(std::uint8_t thread_count, std::string workload_string, std
 
     if (workload_string == "workload_lock") {
 	auto ops = 100000;
+
+        std::ofstream out_file;
+        std::string path = "../Thesis/results/lock_test.txt";
+        std::cout << path << std::endl;
+        out_file.open (path);
+        out_file.clear();
+        if (!out_file.is_open()) {
+            std::cout << "Data file isn't open." << std::endl;
+            return;
+	}
+
         for(std::uint32_t t = 0; t < thread_count; t++) {
             std::cout << "Thread count: " << t << ": " << std::endl;
             for(std::uint32_t i = 0; i < iterations; i++) 
             {
-                throughputs[t*iterations + i] = workload.operation_count*1000/client.run_locks(t+1, ops);
+                throughputs[t*iterations + i] = workload.operation_count*1000*(t+1)/client.run_locks(t+1, ops);
                 std::cout << "Iteration: " << i << ": " <<  throughputs[t*iterations + i] << std::endl;
             }
             // Calculating the performance
@@ -158,7 +169,115 @@ void test_workload_a(std::uint8_t thread_count, std::string workload_string, std
             for(std::uint32_t i = 0; i < iterations; i++) 
     	        thread_total_throughput += throughputs[t*iterations + i];
             double mean = thread_total_throughput / iterations;
-	    std::cout << "Average throughput: " << mean << std::endl;
+            double var = 0.0;
+
+            for(std::uint32_t i = 0; i < iterations; i++)
+            {
+                var += (throughputs[t*iterations + i]-mean)*(throughputs[t*iterations + i]-mean);
+            }
+
+            var /= iterations;
+            double std_dev = std::sqrt(var);
+            std::cout << "Avg Throughput: " << mean << " operations/second." << std::endl;
+            std::cout << "Std Deviation:  " << std_dev << " operations/second." << std::endl;
+
+            // Writing data to file
+            out_file << (t+1) << "\t" << mean << "\t" << std_dev << "\n";
+            std::cout << "Data written" << std::endl;
+	}
+	return;
+    } 
+    else if (workload_string == "workload_map") {
+	auto ops = 100000;
+
+        std::ofstream out_file;
+        std::string path = "../Thesis/results/map_test.txt";
+        std::cout << path << std::endl;
+        out_file.open (path);
+        out_file.clear();
+        if (!out_file.is_open()) {
+            std::cout << "Data file isn't open." << std::endl;
+            return;
+	}
+
+	std::map<std::string, std::string> shared_map;
+
+	client.run_build_records_map(shared_map, 1, ops);
+
+        for(std::uint32_t t = 0; t < thread_count; t++) {
+            std::cout << "Thread count: " << t << ": " << std::endl;
+            for(std::uint32_t i = 0; i < iterations; i++) 
+            {
+                throughputs[t*iterations + i] = workload.operation_count*1000*(t+1)/client.run_map(shared_map, t+1, ops);
+                std::cout << "Iteration: " << i << ": " <<  throughputs[t*iterations + i] << std::endl;
+            }
+            // Calculating the performance
+            thread_total_throughput = 0;
+            for(std::uint32_t i = 0; i < iterations; i++) 
+    	        thread_total_throughput += throughputs[t*iterations + i];
+            double mean = thread_total_throughput / iterations;
+            double var = 0.0;
+
+            for(std::uint32_t i = 0; i < iterations; i++)
+            {
+                var += (throughputs[t*iterations + i]-mean)*(throughputs[t*iterations + i]-mean);
+            }
+
+            var /= iterations;
+            double std_dev = std::sqrt(var);
+            std::cout << "Avg Throughput: " << mean << " operations/second." << std::endl;
+            std::cout << "Std Deviation:  " << std_dev << " operations/second." << std::endl;
+
+            // Writing data to file
+            out_file << (t+1) << "\t" << mean << "\t" << std_dev << "\n";
+            std::cout << "Data written" << std::endl;
+	}
+	return;
+    } 
+    else if (workload_string == "workload_map_locked") {
+	auto ops = 100000;
+
+        std::ofstream out_file;
+        std::string path = "../Thesis/results/map_locked_test.txt";
+        std::cout << path << std::endl;
+        out_file.open (path);
+        out_file.clear();
+        if (!out_file.is_open()) {
+            std::cout << "Data file isn't open." << std::endl;
+            return;
+	}
+
+	std::map<std::string, std::string> shared_map;
+
+	client.run_build_records_map(shared_map, 1, ops);
+
+        for(std::uint32_t t = 0; t < thread_count; t++) {
+            std::cout << "Thread count: " << t << ": " << std::endl;
+            for(std::uint32_t i = 0; i < iterations; i++) 
+            {
+                throughputs[t*iterations + i] = workload.operation_count*1000*(t+1)/client.run_map_locked(shared_map, t+1, ops);
+                std::cout << "Iteration: " << i << ": " <<  throughputs[t*iterations + i] << std::endl;
+            }
+            // Calculating the performance
+            thread_total_throughput = 0;
+            for(std::uint32_t i = 0; i < iterations; i++) 
+    	        thread_total_throughput += throughputs[t*iterations + i];
+            double mean = thread_total_throughput / iterations;
+            double var = 0.0;
+
+            for(std::uint32_t i = 0; i < iterations; i++)
+            {
+                var += (throughputs[t*iterations + i]-mean)*(throughputs[t*iterations + i]-mean);
+            }
+
+            var /= iterations;
+            double std_dev = std::sqrt(var);
+            std::cout << "Avg Throughput: " << mean << " operations/second." << std::endl;
+            std::cout << "Std Deviation:  " << std_dev << " operations/second." << std::endl;
+
+            // Writing data to file
+            out_file << (t+1) << "\t" << mean << "\t" << std_dev << "\n";
+            std::cout << "Data written" << std::endl;
 	}
 	return;
     } 
@@ -186,7 +305,7 @@ void test_workload_a(std::uint8_t thread_count, std::string workload_string, std
         std::cout << "Thread count: " << t << ": " << std::endl;
         for(std::uint32_t i = 0; i < iterations; i++) 
         {
-            throughputs[t*iterations + i] = workload.operation_count*1000/client.run_transactions(t+1);
+            throughputs[t*iterations + i] = workload.operation_count*1000*(t+1)/client.run_transactions(t+1);
             std::cout << "Iteration: " << i << ": " <<  throughputs[t*iterations + i] << std::endl;
         }
         // Calculating the performance

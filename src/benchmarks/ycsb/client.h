@@ -27,6 +27,7 @@ class client {
     std::uint32_t run_locks(std::uint8_t thread_count, std::uint32_t operation_count);
     void run_build_records_map(std::map<std::string, std::string>& shared_map, std::uint8_t thread_count, std::uint32_t record_count);
     std::uint32_t run_map(std::map<std::string, std::string>& shared_map, std::uint8_t thread_count, std::uint32_t operation_count);
+    std::uint32_t run_map_locked(std::map<std::string, std::string>& shared_map, std::uint8_t thread_count, std::uint32_t operation_count);
     std::uint32_t run_data_gen(std::uint8_t thread_count, std::uint32_t operation_count);
 
 
