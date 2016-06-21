@@ -64,6 +64,18 @@ void do_map_timed(std::map<std::string, std::string>& map, workload& wl, std::ui
 	timing.set_end(std::chrono::high_resolution_clock::now());
 }
 
+void do_map_timed_locked(std::map<std::string, std::string>& map, std::shared_mutex& shared_muted, workload& wl, std::uint32_t operation_count, utils::timing_obj& timing) {
+	boost::shared_lock<boost::shared_mutex> local_shared_lock(shared_mutex, boost::defer_lock);
+
+	timing.set_start(std::chrono::high_resolution_clock::now());
+	for (std::uint32_t i = 0; i < operation_count; i++) {
+		local_shared_lock.lock();
+		map.find(wl.next_transaction_key());
+		local_shared_lock.unlock();
+	}
+	timing.set_end(std::chrono::high_resolution_clock::now());
+}
+
 void do_data_gen_timed(workload& wl, std::uint32_t operation_count, utils::timing_obj& timing) {
 	timing.set_start(std::chrono::high_resolution_clock::now());
 	for (std::uint32_t i = 0; i < operation_count; i++) {
@@ -177,6 +189,34 @@ std::uint32_t client::run_map(std::map<std::string, std::string>& shared_map, st
 	// Transactions - Running the designed workload.
 	for(std::uint32_t t = 0; t < thread_count; t++) {
 		threads[t] = std::thread(do_map_timed, std::ref(shared_map), std::ref(wl), operation_count, std::ref(timings[t]));
+		utils::stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
+	}
+	for(std::uint32_t t = 0; t < thread_count; t++) {
+		threads[t].join();
+	}
+
+	std::chrono::_V2::system_clock::time_point min_start = timings[0].start;
+	std::chrono::_V2::system_clock::time_point max_end = timings[0].end;
+
+	for(std::uint32_t t = 1; t < thread_count; t++) {
+		if (timings[t].start < min_start) {
+			min_start = timings[t].start;
+		}
+		if (timings[t].end > max_end) {
+			max_end = timings[t].end;
+		}
+	}
+	return std::chrono::duration_cast<std::chrono::milliseconds>(max_end-min_start).count();
+}
+
+std::uint32_t client::run_map_locked(std::map<std::string, std::string>& shared_map, std::uint8_t thread_count, std::uint32_t operation_count) {
+	std::thread threads[thread_count];
+	utils::timing_obj timings[thread_count];
+	boost::shared_mutex mutex;
+	
+	// Transactions - Running the designed workload.
+	for(std::uint32_t t = 0; t < thread_count; t++) {
+		threads[t] = std::thread(do_map_timed_locked, std::ref(shared_map), std::ref(mutex), std::ref(wl), operation_count, std::ref(timings[t]));
 		utils::stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
 	}
 	for(std::uint32_t t = 0; t < thread_count; t++) {
