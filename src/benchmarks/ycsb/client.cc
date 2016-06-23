@@ -30,6 +30,7 @@ void do_insertions_concurrent_timed(dbindex::abstract_index& hash_index, workloa
 void do_transactions_concurrent_timed(dbindex::abstract_index& hash_index, workload& wl, std::uint32_t operation_count, utils::timing_obj& timing) {
 	timing.set_start(std::chrono::high_resolution_clock::now());
 	for (std::uint32_t i = 0; i < operation_count; i++) {
+		// std::cout << ((double)i*100)/((double)operation_count) << "%" << std::endl;
 		wl.do_transaction(hash_index);
 	}
 	timing.set_end(std::chrono::high_resolution_clock::now());
@@ -187,7 +188,7 @@ std::uint32_t client::run_map(std::map<std::string, std::string>& shared_map, st
 	// Transactions - Running the designed workload.
 	for(std::uint32_t t = 0; t < thread_count; t++) {
 		threads[t] = std::thread(do_map_timed, std::ref(shared_map), std::ref(wl), operation_count, std::ref(timings[t]));
-		utils::stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
+		utils::stick_thread_to_core(threads[t].native_handle(), t);
 	}
 	for(std::uint32_t t = 0; t < thread_count; t++) {
 		threads[t].join();
@@ -268,12 +269,9 @@ std::uint32_t client::run_workload() {
 	std::thread threads[thread_count];
 	utils::timing_obj timings[thread_count];
 
-	std::uint32_t thread_record_count    = wl.get_record_count() / thread_count;
-	std::uint32_t thread_operation_count = wl.get_operation_count() / thread_count;
-
 	// Insertions 	- Initialization of the index
 	for(std::uint32_t t = 0; t < thread_count; t++) {
-		threads[t] = std::thread(do_insertions_concurrent_timed, std::ref(hash_index), std::ref(wl), wl.get__record_count(), std::ref(timings[t]));
+		threads[t] = std::thread(do_insertions_concurrent_timed, std::ref(hash_index), std::ref(wl), wl.get_record_count(), std::ref(timings[t]));
 		utils::stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
 	}
 	for(std::uint32_t t = 0; t < thread_count; t++) {

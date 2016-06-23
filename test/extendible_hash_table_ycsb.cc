@@ -139,7 +139,7 @@ void test_workload_a(std::uint8_t thread_count, std::string workload_string, std
 
     ycsb::client client(*hash_table, workload, thread_count);
 
-    std::uint32_t iterations = 25;
+    std::uint32_t iterations = 5;
 
     std::uint32_t thread_total_throughput;
     std::uint32_t throughputs[iterations*thread_count];
@@ -289,7 +289,7 @@ void test_workload_a(std::uint8_t thread_count, std::string workload_string, std
     std::cout << "Opening file" << std::endl;
         // Opening Data File
     std::ofstream out_file;
-    std::string path = "../Thesis/results/" + hash_func_string + "_" + hash_index_string + "_" + workload_string + "_no_lock.txt";
+    std::string path = "../Thesis/results/" + hash_func_string + "_" + hash_index_string + "_" + workload_string + ".txt";
     std::cout << path << std::endl;
     out_file.open (path);
     out_file.clear();
