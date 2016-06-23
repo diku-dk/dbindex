@@ -76,7 +76,7 @@ std::string workload_to_string(ycsb::workload_properties workload_x) {
     return "workload_a";
 }
 
-void test_workload_a(std::uint8_t thread_count, std::string workload_string, std::uint8_t hash_func_num, std::uint8_t hash_index_num) {
+void test_workload(std::uint8_t thread_count, std::string workload_string, std::uint8_t hash_func_num, std::uint8_t hash_index_num) {
     using namespace std::chrono;
 
     constexpr size_t directory_size = 1<<10;
@@ -376,5 +376,5 @@ int main(int argc, char *argv[]) {
     thread_count    = std::atoi(argv[4]);
 
 
-    test_workload_a(thread_count, workload_string, hash_func_num, hash_index_num);
+    test_workload(thread_count, workload_string, hash_func_num, hash_index_num);
 }

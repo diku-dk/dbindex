@@ -94,8 +94,10 @@ void client::run_build_records(std::uint8_t thread_count) {
 
 	// Insertions 	- Initialization of the index
 	for(std::uint32_t t = 0; t < thread_count; t++) {
+		workload wl;
+		wl.init(wl_p);
 		threads[t] = std::thread(do_insertions_concurrent, std::ref(hash_index), std::ref(wl), wl.get_record_count());
-		utils::stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
+		utils::stick_thread_to_core(threads[t].native_handle(), t);
 	}
 	for(std::uint32_t t = 0; t < thread_count; t++) {
 		threads[t].join();
@@ -108,8 +110,10 @@ std::uint32_t client::run_transactions(std::uint8_t thread_count) {
 	
 	// Transactions - Running the designed workload.
 	for(std::uint32_t t = 0; t < thread_count; t++) {
+		workload wl;
+		wl.init(wl_p);
 		threads[t] = std::thread(do_transactions_concurrent_timed, std::ref(hash_index), std::ref(wl), wl.get_operation_count(), std::ref(timings[t]));
-		utils::stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
+		utils::stick_thread_to_core(threads[t].native_handle(), t);
 	}
 	for(std::uint32_t t = 0; t < thread_count; t++) {
 		threads[t].join();
@@ -147,8 +151,10 @@ std::uint32_t client::run_locks(std::uint8_t thread_count, std::uint32_t operati
 	
 	// Transactions - Running the designed workload.
 	for(std::uint32_t t = 0; t < thread_count; t++) {
+		workload wl;
+		wl.init(wl_p);
 		threads[t] = std::thread(do_locks_timed, std::ref(mutex), operation_count, std::ref(timings[t]));
-		utils::stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
+		utils::stick_thread_to_core(threads[t].native_handle(), t);
 	}
 	for(std::uint32_t t = 0; t < thread_count; t++) {
 		threads[t].join();
@@ -173,8 +179,10 @@ void client::run_build_records_map(std::map<std::string, std::string>& shared_ma
 
 	// Insertions 	- Initialization of the index
 	for(std::uint32_t t = 0; t < thread_count; t++) {
+		workload wl;
+		wl.init(wl_p);
 		threads[t] = std::thread(do_map_insertions_concurrent, std::ref(shared_map), std::ref(wl), record_count);
-		utils::stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
+		utils::stick_thread_to_core(threads[t].native_handle(), t);
 	}
 	for(std::uint32_t t = 0; t < thread_count; t++) {
 		threads[t].join();
@@ -187,6 +195,8 @@ std::uint32_t client::run_map(std::map<std::string, std::string>& shared_map, st
 	
 	// Transactions - Running the designed workload.
 	for(std::uint32_t t = 0; t < thread_count; t++) {
+		workload wl;
+		wl.init(wl_p);
 		threads[t] = std::thread(do_map_timed, std::ref(shared_map), std::ref(wl), operation_count, std::ref(timings[t]));
 		utils::stick_thread_to_core(threads[t].native_handle(), t);
 	}
@@ -215,8 +225,10 @@ std::uint32_t client::run_map_locked(std::map<std::string, std::string>& shared_
 	
 	// Transactions - Running the designed workload.
 	for(std::uint32_t t = 0; t < thread_count; t++) {
+		workload wl;
+		wl.init(wl_p);
 		threads[t] = std::thread(do_map_timed_locked, std::ref(shared_map), std::ref(mutex), std::ref(wl), operation_count, std::ref(timings[t]));
-		utils::stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
+		utils::stick_thread_to_core(threads[t].native_handle(), t);
 	}
 	for(std::uint32_t t = 0; t < thread_count; t++) {
 		threads[t].join();
@@ -242,8 +254,10 @@ std::uint32_t client::run_data_gen(std::uint8_t thread_count, std::uint32_t oper
 	
 	// Transactions - Running the designed workload.
 	for(std::uint32_t t = 0; t < thread_count; t++) {
+		workload wl;
+		wl.init(wl_p);
 		threads[t] = std::thread(do_data_gen_timed, std::ref(wl), operation_count, std::ref(timings[t]));
-		utils::stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
+		utils::stick_thread_to_core(threads[t].native_handle(), t);
 	}
 	for(std::uint32_t t = 0; t < thread_count; t++) {
 		threads[t].join();
@@ -268,11 +282,12 @@ std::uint32_t client::run_data_gen(std::uint8_t thread_count, std::uint32_t oper
 std::uint32_t client::run_workload() {
 	std::thread threads[thread_count];
 	utils::timing_obj timings[thread_count];
-
+	workload wls[thread_count];
 	// Insertions 	- Initialization of the index
 	for(std::uint32_t t = 0; t < thread_count; t++) {
-		threads[t] = std::thread(do_insertions_concurrent_timed, std::ref(hash_index), std::ref(wl), wl.get_record_count(), std::ref(timings[t]));
-		utils::stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
+		wls[t].init(wl_p);
+		threads[t] = std::thread(do_insertions_concurrent_timed, std::ref(hash_index), std::ref(wls[t]), wls[t].get_record_count(), std::ref(timings[t]));
+		utils::stick_thread_to_core(threads[t].native_handle(), t);
 	}
 	for(std::uint32_t t = 0; t < thread_count; t++) {
 		threads[t].join();
@@ -280,8 +295,8 @@ std::uint32_t client::run_workload() {
 
 	// Transactions - Running the designed workload.
 	for(std::uint32_t t = 0; t < thread_count; t++) {
-		threads[t] = std::thread(do_transactions_concurrent_timed, std::ref(hash_index), std::ref(wl), wl.get_operation_count(), std::ref(timings[t]));
-		utils::stick_thread_to_core(threads[t].native_handle(), (t*2)+1);
+		threads[t] = std::thread(do_transactions_concurrent_timed, std::ref(hash_index), std::ref(wls[t]), wls[t].get_operation_count(), std::ref(timings[t]));
+		utils::stick_thread_to_core(threads[t].native_handle(), t);
 	}
 	for(std::uint32_t t = 0; t < thread_count; t++) {
 		threads[t].join();
