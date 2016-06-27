@@ -1,0 +1,41 @@
+reset
+
+# Specify workload and hash_function
+if (!exists("hash_func")) hash_func   = 'tabulation'
+range = '100'
+
+name = sprintf('%s_hash_workload_scan_%s_range', hash_func, range)
+name_arr = sprintf('%s_hash_array_hash_table_workload_scan_%s_range', hash_func, range)
+name_ext = sprintf('%s_hash_extendible_hash_table_workload_scan_%s_range', hash_func, range)
+name_par = sprintf('%s_hash_partitioned_array_hash_table_workload_scan_%s_range', hash_func, range)
+
+# Set output image position
+set term png enhanced
+set output sprintf('../Thesis/results/graphs/%s.png', name)
+
+# Setup labels and legend
+set xlabel "Amount of threads"
+set ylabel "Throughput (ops/s)"
+set key box opaque
+set border back
+
+# Calculating stats from file
+stats sprintf('../Thesis/results/%s.txt', name_arr) every ::0 using 2 nooutput
+#amount  = int(STATS_records)
+#mean    = int(STATS_mean)
+ymax     = int(STATS_max)
+#std_dev = real(STATS_stddev)
+
+stats sprintf('../Thesis/results/%s.txt', name_arr) every ::0 using 1 nooutput
+xmax     = int(STATS_max)
+
+# Making plot
+set xrange [0:xmax]
+set yrange [0:ymax*1.5]
+
+plot sprintf('../Thesis/results/%s.txt', name_arr) title sprintf('Array index, up to %s range scans', range) with errorbars lt rgb "red", \
+	'' notitle with lines lt rgb "red", \
+	sprintf('../Thesis/results/%s.txt', name_ext) title sprintf('Extendible index, up to %s range scans', range) with errorbars lt rgb "green", \
+	'' notitle with lines lt rgb "green", \
+	sprintf('../Thesis/results/%s.txt', name_par) title sprintf('Partitioned index, up to %s range scans', range) with errorbars lt rgb "orange", \
+	'' notitle with lines lt rgb "blue", \

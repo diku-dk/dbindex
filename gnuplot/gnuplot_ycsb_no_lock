@@ -1,13 +1,13 @@
 reset
 
 # Specify workload and hash_function
-if (!exists("workload")) workload     = 'workload_a'
+if (!exists("workload")) workload     = 'workload_read'
 if (!exists("hash_func")) hash_func   = 'tabulation'
 
-name = sprintf('%s_hash_%s', hash_func, workload)
-name_arr = sprintf('%s_hash_array_hash_table_%s', hash_func, workload)
-name_ext = sprintf('%s_hash_extendible_hash_table_%s', hash_func, workload)
-name_par = sprintf('%s_hash_partitioned_array_hash_table_%s', hash_func, workload)
+name = sprintf('%s_hash_%s_no_lock', hash_func, workload)
+name_arr = sprintf('%s_hash_array_hash_table_%s_no_lock', hash_func, workload)
+name_ext = sprintf('%s_hash_extendible_hash_table_%s_no_lock', hash_func, workload)
+name_par = sprintf('%s_hash_partitioned_array_hash_table_%s_no_lock', hash_func, workload)
 
 # Set output image position
 set term png enhanced
@@ -24,7 +24,6 @@ stats sprintf('../Thesis/results/%s.txt', name_arr) every ::0 using 2 nooutput
 #amount  = int(STATS_records)
 #mean    = int(STATS_mean)
 ymax     = int(STATS_max)
-ymin     = int(STATS_min)
 #std_dev = real(STATS_stddev)
 
 stats sprintf('../Thesis/results/%s.txt', name_arr) every ::0 using 1 nooutput
@@ -32,10 +31,9 @@ xmax     = int(STATS_max)
 
 # Making plot
 set xrange [0:xmax]
-set yrange [0:(fix(ymin))*1.5]
+set yrange [0:ymax*1.5]
 print name
 print ymax
-print fix(ymax)
 
 
 plot sprintf('../Thesis/results/%s.txt', name_arr) title sprintf('Array-index, %s hashing, %s', hash_func, workload) with errorbars lt rgb "red",\

@@ -56,14 +56,28 @@ void do_map_insertions_concurrent(std::map<std::string, std::string>& map, workl
 		map.insert(std::pair<std::string, std::string>(key, value));
 	}
 }
-
 void do_map_timed(std::map<std::string, std::string>& map, workload& wl, std::uint32_t operation_count, utils::timing_obj& timing) {
 	timing.set_start(std::chrono::high_resolution_clock::now());
 	for (std::uint32_t i = 0; i < operation_count; i++) {
 		map.find(wl.next_transaction_key());
 	}
 	timing.set_end(std::chrono::high_resolution_clock::now());
+	// std::cout << "Thread Throughput: " << operation_count*1000/timing.get_duration_milliseconds() << std::endl;
 }
+
+// void do_map_timed(utils::timing_obj& timing) {
+// 	boost::shared_mutex mutex;
+
+// 	timing.set_start(std::chrono::high_resolution_clock::now());
+// 	for (std::uint32_t i = 0; i < 100000; i++) {
+// 		mutex.lock();
+// 		mutex.unlock();
+// 		// map.find(keys[i]);
+// 	}
+// 	timing.set_end(std::chrono::high_resolution_clock::now());
+// 	std::cout << "Thread Throughput: " << 100000000/timing.get_duration_milliseconds() << std::endl;
+
+// }
 
 void do_map_timed_locked(std::map<std::string, std::string>& map, boost::shared_mutex& mutex, workload& wl, std::uint32_t operation_count, utils::timing_obj& timing) {
 	boost::shared_lock<boost::shared_mutex> local_shared_lock(mutex, boost::defer_lock);
@@ -193,12 +207,18 @@ std::uint32_t client::run_map(std::map<std::string, std::string>& shared_map, st
 	std::thread threads[thread_count];
 	utils::timing_obj timings[thread_count];
 	workload wls[thread_count];
+	std::vector<std::vector<std::string>> thread_keys{thread_count, std::vector<std::string>{operation_count}};
 
-	// Insertions 	- Initialization of the index
 	for(std::uint32_t t = 0; t < thread_count; t++) {
 		wls[t].init(wl_p);
+		for (std::uint32_t i = 0; i < operation_count; i++) {
+			thread_keys[t][i] = wls[t].next_transaction_key();
+		}
+	}
+	// Insertions 	- Initialization of the index
+	for(std::uint32_t t = 0; t < thread_count; t++) {
 		threads[t] = std::thread(do_map_timed, std::ref(shared_map), std::ref(wls[t]), operation_count, std::ref(timings[t]));
-		utils::stick_thread_to_core(threads[t].native_handle(), t);
+		utils::stick_thread_to_core(threads[t].native_handle(), t*2);
 	}
 	for(std::uint32_t t = 0; t < thread_count; t++) {
 		threads[t].join();
@@ -207,7 +227,9 @@ std::uint32_t client::run_map(std::map<std::string, std::string>& shared_map, st
 	std::chrono::_V2::system_clock::time_point min_start = timings[0].start;
 	std::chrono::_V2::system_clock::time_point max_end = timings[0].end;
 
-	for(std::uint32_t t = 1; t < thread_count; t++) {
+	std::uint32_t total_throughput = 0;
+	for(std::uint32_t t = 0; t < thread_count; t++) {
+		total_throughput += wls[t].get_operation_count()*1000/timings[t].get_duration_milliseconds();
 		if (timings[t].start < min_start) {
 			min_start = timings[t].start;
 		}
@@ -215,6 +237,7 @@ std::uint32_t client::run_map(std::map<std::string, std::string>& shared_map, st
 			max_end = timings[t].end;
 		}
 	}
+	std::cout << "Total Throughput: " << total_throughput << std::endl;
 	return std::chrono::duration_cast<std::chrono::milliseconds>(max_end-min_start).count();
 }
 

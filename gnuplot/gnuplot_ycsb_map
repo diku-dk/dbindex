@@ -1,0 +1,44 @@
+reset
+
+# Specify workload and hash_function
+if (!exists("workload")) workload     = 'workload_read'
+if (!exists("hash_func")) hash_func   = 'tabulation'
+
+name = sprintf('map_test', hash_func, workload)
+name_map = "map_test"
+name_ext = sprintf('%s_hash_extendible_hash_table_%s_no_lock', hash_func, workload)
+name_map_locked = "map_locked_test"
+name_ext_locked = sprintf('%s_hash_extendible_hash_table_%s', hash_func, workload)
+
+# Set output image position
+set term png enhanced
+set output sprintf('../Thesis/results/graphs/%s.png', name)
+
+# Setup labels and legend
+set xlabel "Amount of threads"
+set ylabel "Throughput (ops/s)"
+set key box opaque
+set border back
+
+# Calculating stats from file
+stats sprintf('../Thesis/results/%s.txt', name_map) every ::0 using 2 nooutput
+#amount  = int(STATS_records)
+#mean    = int(STATS_mean)
+ymax     = int(STATS_max)
+#std_dev = real(STATS_stddev)
+
+stats sprintf('../Thesis/results/%s.txt', name_map) every ::0 using 1 nooutput
+xmax     = int(STATS_max)
+
+# Making plot
+set xrange [0:xmax]
+set yrange [0:ymax*1.5]
+
+plot sprintf('../Thesis/results/%s.txt', name_map) title "std::map, no locking" with errorbars lt rgb "red", \
+	'' notitle with lines lt rgb "red", \
+	sprintf('../Thesis/results/%s.txt', name_map_locked) title "std::map, shared-locking on same mutex" with errorbars lt rgb "green", \
+	'' notitle with lines lt rgb "green", \
+	sprintf('../Thesis/results/%s.txt', name_ext) title "Extendible-hashing, no locking" with errorbars lt rgb "orange", \
+	'' notitle with lines lt rgb "orange", \
+	sprintf('../Thesis/results/%s.txt', name_ext_locked) title "Extendible-hashing, shared-locking on same mutex" with errorbars lt rgb "blue", \
+	'' notitle with lines lt rgb "blue"
