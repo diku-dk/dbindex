@@ -5,6 +5,7 @@
 #include <string>
 #include <iostream>
 
+#include "Generators/uniform_generator.h"
 #include "Generators/abstract_generator.h"
 #include "Generators/discrete_generator.h"
 #include "Generators/counter_generator.h"
@@ -50,6 +51,8 @@ class workload {
     size_t max_value_len;
     std::uint32_t record_count;
     std::uint32_t operation_count;
+
+    std::uint32_t rand_char_seed;
 
     abstract_generator<hash_value_t>  *value_len_generator;
     abstract_generator<hash_value_t>  *key_generator;

@@ -1,5 +1,8 @@
 #include <stdexcept>
+#include <stdlib.h>
 #include <string>
+#include <chrono>
+#include <thread>
 
 #include "Generators/uniform_generator.h"
 #include "Generators/zipfian_generator.h"
@@ -30,6 +33,8 @@ void workload::init(const workload_properties& p) {
     insert_sequence_generator.set(p.record_count);
 
     // Instantiate generators
+    rand_char_seed      = static_cast<std::uint32_t>(std::chrono::high_resolution_clock::now().time_since_epoch().count()) ^ (std::uint32_t) std::hash<std::thread::id>()(std::this_thread::get_id());
+
     max_value_len       = p.max_value_len;
     record_count        = p.record_count;
     operation_count     = p.operation_count;
@@ -71,7 +76,7 @@ void workload::build_value(std::string& value) {
     hash_value_t string_len = value_len_generator->next();
     value = "";
     for (hash_value_t c = 0; c < string_len; c++) {
-        value += utils::random_print_char();
+        value += rand_r(&rand_char_seed) % 94 + 33;
     }
 }
 
