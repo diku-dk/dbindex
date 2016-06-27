@@ -30,8 +30,8 @@ inline double random_double(double min = 0.0, double max = 1.0) {
     return uniform(generator);
 }
 
-inline char random_print_char() {
-  return rand() % 94 + 33;
+inline char random_print_char(std::uint32_t rand_char_seed) {
+  return rand_r(&rand_char_seed) % 94 + 33;
 }
 
 }
