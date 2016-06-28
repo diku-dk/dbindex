@@ -67,20 +67,6 @@ void do_map_timed(std::map<std::string, std::string>& map, workload& wl, std::ui
 	// std::cout << "Thread Throughput: " << operation_count*1000/timing.get_duration_milliseconds() << std::endl;
 }
 
-// void do_map_timed(utils::timing_obj& timing) {
-// 	boost::shared_mutex mutex;
-
-// 	timing.set_start(std::chrono::high_resolution_clock::now());
-// 	for (std::uint32_t i = 0; i < 100000; i++) {
-// 		mutex.lock();
-// 		mutex.unlock();
-// 		// map.find(keys[i]);
-// 	}
-// 	timing.set_end(std::chrono::high_resolution_clock::now());
-// 	std::cout << "Thread Throughput: " << 100000000/timing.get_duration_milliseconds() << std::endl;
-
-// }
-
 void do_map_timed_locked(std::map<std::string, std::string>& map, boost::shared_mutex& mutex, workload& wl, std::uint32_t operation_count, utils::timing_obj& timing) {
 	boost::shared_lock<boost::shared_mutex> local_shared_lock(mutex, boost::defer_lock);
 
@@ -113,7 +99,7 @@ void client::run_build_records(std::uint8_t thread_count) {
 	for(std::uint32_t t = 0; t < thread_count; t++) {
 		wls[t].init(wl_p);
 		threads[t] = std::thread(do_insertions_concurrent, std::ref(hash_index), std::ref(wls[t]), wls[t].get_record_count());
-		utils::stick_thread_to_core(threads[t].native_handle(), t);
+		utils::stick_thread_to_core(threads[t].native_handle(), (t*2)%32 + ((t*2)/32));
 	}
 	for(std::uint32_t t = 0; t < thread_count; t++) {
 		threads[t].join();
@@ -129,31 +115,34 @@ std::uint32_t client::run_transactions(std::uint8_t thread_count) {
 	for(std::uint32_t t = 0; t < thread_count; t++) {
 		wls[t].init(wl_p);
 		threads[t] = std::thread(do_transactions_concurrent_timed, std::ref(hash_index), std::ref(wls[t]), wls[t].get_operation_count(), std::ref(timings[t]));
-		utils::stick_thread_to_core(threads[t].native_handle(), t);
+		utils::stick_thread_to_core(threads[t].native_handle(), (t*2)%32 + ((t*2)/32));
 	}
 	for(std::uint32_t t = 0; t < thread_count; t++) {
 		threads[t].join();
 	}
 
-	std::chrono::_V2::system_clock::time_point min_start = timings[0].start;
-	std::chrono::_V2::system_clock::time_point max_end = timings[0].end;
-        // std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(timings[0].end - timings[0].start).count() << std::endl;
+	// std::chrono::_V2::system_clock::time_point min_start = timings[0].start;
+	// std::chrono::_V2::system_clock::time_point max_end = timings[0].end;
+    // std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(timings[0].end - timings[0].start).count() << std::endl;
+
+    std::uint32_t total_throughput = 0;
 
 	for(std::uint32_t t = 1; t < thread_count; t++) {
-		if (timings[t].start < min_start) {
-			min_start = timings[t].start;
-		}
-		if (timings[t].end > max_end) {
-			max_end = timings[t].end;
-		}
-	        // std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(timings[t].end - timings[t].start).count() << std::endl;
+		total_throughput += wls[t].get_operation_count()*1000/timings[t].get_duration_milliseconds();
+		// if (timings[t].start < min_start) {
+		// 	min_start = timings[t].start;
+		// }
+		// if (timings[t].end > max_end) {
+		// 	max_end = timings[t].end;
+		// }
+        // std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(timings[t].end - timings[t].start).count() << std::endl;
 	}
-	return std::chrono::duration_cast<std::chrono::milliseconds>(max_end-min_start).count();
+	return total_throughput; 
+	// return std::chrono::duration_cast<std::chrono::milliseconds>(max_end-min_start).count();
 }
 
 
 /********* Debugging only, Do delete ***********/
-
 
 // void do_locks_timed(boost::shared_lock<boost::shared_mutex>& local_shared_lock, std::uint32_t operation_count, utils::timing_obj& timing)
 // void do_map_insertions_concurrent(std::map<std::string, std::string>& map, workload& wl, std::uint32_t operation_count)
@@ -170,24 +159,30 @@ std::uint32_t client::run_locks(std::uint8_t thread_count, std::uint32_t operati
 	for(std::uint32_t t = 0; t < thread_count; t++) {
 		wls[t].init(wl_p);
 		threads[t] = std::thread(do_locks_timed, std::ref(mutex), operation_count, std::ref(timings[t]));
-		utils::stick_thread_to_core(threads[t].native_handle(), t);
+		utils::stick_thread_to_core(threads[t].native_handle(), (t*2)%32 + ((t*2)/32));
 	}
 	for(std::uint32_t t = 0; t < thread_count; t++) {
 		threads[t].join();
 	}
 
-	std::chrono::_V2::system_clock::time_point min_start = timings[0].start;
-	std::chrono::_V2::system_clock::time_point max_end = timings[0].end;
+	// std::chrono::_V2::system_clock::time_point min_start = timings[0].start;
+	// std::chrono::_V2::system_clock::time_point max_end = timings[0].end;
+    // std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(timings[0].end - timings[0].start).count() << std::endl;
+
+    std::uint32_t total_throughput = 0;
 
 	for(std::uint32_t t = 1; t < thread_count; t++) {
-		if (timings[t].start < min_start) {
-			min_start = timings[t].start;
-		}
-		if (timings[t].end > max_end) {
-			max_end = timings[t].end;
-		}
+		total_throughput += wls[t].get_operation_count()*1000/timings[t].get_duration_milliseconds();
+		// if (timings[t].start < min_start) {
+		// 	min_start = timings[t].start;
+		// }
+		// if (timings[t].end > max_end) {
+		// 	max_end = timings[t].end;
+		// }
+        // std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(timings[t].end - timings[t].start).count() << std::endl;
 	}
-	return std::chrono::duration_cast<std::chrono::milliseconds>(max_end-min_start).count();
+	return total_throughput; 
+	// return std::chrono::duration_cast<std::chrono::milliseconds>(max_end-min_start).count();
 }
 
 void client::run_build_records_map(std::map<std::string, std::string>& shared_map, std::uint8_t thread_count, std::uint32_t record_count) {
@@ -198,7 +193,7 @@ void client::run_build_records_map(std::map<std::string, std::string>& shared_ma
 	for(std::uint32_t t = 0; t < thread_count; t++) {
 		wls[t].init(wl_p);
 		threads[t] = std::thread(do_map_insertions_concurrent, std::ref(shared_map), std::ref(wls[t]), record_count);
-		utils::stick_thread_to_core(threads[t].native_handle(), t);
+		utils::stick_thread_to_core(threads[t].native_handle(), (t*2)%32 + ((t*2)/32));
 	}
 	for(std::uint32_t t = 0; t < thread_count; t++) {
 		threads[t].join();
@@ -226,21 +221,24 @@ std::uint32_t client::run_map(std::map<std::string, std::string>& shared_map, st
 		threads[t].join();
 	}
 
-	std::chrono::_V2::system_clock::time_point min_start = timings[0].start;
-	std::chrono::_V2::system_clock::time_point max_end = timings[0].end;
+	// std::chrono::_V2::system_clock::time_point min_start = timings[0].start;
+	// std::chrono::_V2::system_clock::time_point max_end = timings[0].end;
+    // std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(timings[0].end - timings[0].start).count() << std::endl;
 
-	std::uint32_t total_throughput = 0;
-	for(std::uint32_t t = 0; t < thread_count; t++) {
+    std::uint32_t total_throughput = 0;
+
+	for(std::uint32_t t = 1; t < thread_count; t++) {
 		total_throughput += wls[t].get_operation_count()*1000/timings[t].get_duration_milliseconds();
-		if (timings[t].start < min_start) {
-			min_start = timings[t].start;
-		}
-		if (timings[t].end > max_end) {
-			max_end = timings[t].end;
-		}
+		// if (timings[t].start < min_start) {
+		// 	min_start = timings[t].start;
+		// }
+		// if (timings[t].end > max_end) {
+		// 	max_end = timings[t].end;
+		// }
+        // std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(timings[t].end - timings[t].start).count() << std::endl;
 	}
-	std::cout << "Total Throughput: " << total_throughput << std::endl;
-	return std::chrono::duration_cast<std::chrono::milliseconds>(max_end-min_start).count();
+	return total_throughput; 
+	// return std::chrono::duration_cast<std::chrono::milliseconds>(max_end-min_start).count();
 }
 
 std::uint32_t client::run_map_locked(std::map<std::string, std::string>& shared_map, std::uint8_t thread_count, std::uint32_t operation_count) {
@@ -253,24 +251,30 @@ std::uint32_t client::run_map_locked(std::map<std::string, std::string>& shared_
 	for(std::uint32_t t = 0; t < thread_count; t++) {
 		wls[t].init(wl_p);
 		threads[t] = std::thread(do_map_timed_locked, std::ref(shared_map), std::ref(mutex), std::ref(wls[t]), operation_count, std::ref(timings[t]));
-		utils::stick_thread_to_core(threads[t].native_handle(), t);
+		utils::stick_thread_to_core(threads[t].native_handle(), (t*2)%32 + ((t*2)/32));
 	}
 	for(std::uint32_t t = 0; t < thread_count; t++) {
 		threads[t].join();
 	}
 
-	std::chrono::_V2::system_clock::time_point min_start = timings[0].start;
-	std::chrono::_V2::system_clock::time_point max_end = timings[0].end;
+	// std::chrono::_V2::system_clock::time_point min_start = timings[0].start;
+	// std::chrono::_V2::system_clock::time_point max_end = timings[0].end;
+    // std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(timings[0].end - timings[0].start).count() << std::endl;
+
+    std::uint32_t total_throughput = 0;
 
 	for(std::uint32_t t = 1; t < thread_count; t++) {
-		if (timings[t].start < min_start) {
-			min_start = timings[t].start;
-		}
-		if (timings[t].end > max_end) {
-			max_end = timings[t].end;
-		}
+		total_throughput += wls[t].get_operation_count()*1000/timings[t].get_duration_milliseconds();
+		// if (timings[t].start < min_start) {
+		// 	min_start = timings[t].start;
+		// }
+		// if (timings[t].end > max_end) {
+		// 	max_end = timings[t].end;
+		// }
+        // std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(timings[t].end - timings[t].start).count() << std::endl;
 	}
-	return std::chrono::duration_cast<std::chrono::milliseconds>(max_end-min_start).count();
+	return total_throughput; 
+	// return std::chrono::duration_cast<std::chrono::milliseconds>(max_end-min_start).count();
 }
 
 std::uint32_t client::run_data_gen(std::uint8_t thread_count, std::uint32_t operation_count) {
@@ -282,24 +286,30 @@ std::uint32_t client::run_data_gen(std::uint8_t thread_count, std::uint32_t oper
 	for(std::uint32_t t = 0; t < thread_count; t++) {
 		wls[t].init(wl_p);
 		threads[t] = std::thread(do_data_gen_timed, std::ref(wls[t]), operation_count, std::ref(timings[t]));
-		utils::stick_thread_to_core(threads[t].native_handle(), t);
+		utils::stick_thread_to_core(threads[t].native_handle(), (t*2)%32 + ((t*2)/32));
 	}
 	for(std::uint32_t t = 0; t < thread_count; t++) {
 		threads[t].join();
 	}
 
-	std::chrono::_V2::system_clock::time_point min_start = timings[0].start;
-	std::chrono::_V2::system_clock::time_point max_end = timings[0].end;
+	// std::chrono::_V2::system_clock::time_point min_start = timings[0].start;
+	// std::chrono::_V2::system_clock::time_point max_end = timings[0].end;
+    // std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(timings[0].end - timings[0].start).count() << std::endl;
+
+    std::uint32_t total_throughput = 0;
 
 	for(std::uint32_t t = 1; t < thread_count; t++) {
-		if (timings[t].start < min_start) {
-			min_start = timings[t].start;
-		}
-		if (timings[t].end > max_end) {
-			max_end = timings[t].end;
-		}
+		total_throughput += wls[t].get_operation_count()*1000/timings[t].get_duration_milliseconds();
+		// if (timings[t].start < min_start) {
+		// 	min_start = timings[t].start;
+		// }
+		// if (timings[t].end > max_end) {
+		// 	max_end = timings[t].end;
+		// }
+        // std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(timings[t].end - timings[t].start).count() << std::endl;
 	}
-	return std::chrono::duration_cast<std::chrono::milliseconds>(max_end-min_start).count();
+	return total_throughput; 
+	// return std::chrono::duration_cast<std::chrono::milliseconds>(max_end-min_start).count();
 }
 
 /********* End of debugging ***********/
@@ -312,7 +322,7 @@ std::uint32_t client::run_workload() {
 	for(std::uint32_t t = 0; t < thread_count; t++) {
 		wls[t].init(wl_p);
 		threads[t] = std::thread(do_insertions_concurrent_timed, std::ref(hash_index), std::ref(wls[t]), wls[t].get_record_count(), std::ref(timings[t]));
-		utils::stick_thread_to_core(threads[t].native_handle(), t);
+		utils::stick_thread_to_core(threads[t].native_handle(), (t*2)%32 + ((t*2)/32));
 	}
 	for(std::uint32_t t = 0; t < thread_count; t++) {
 		threads[t].join();
@@ -321,24 +331,30 @@ std::uint32_t client::run_workload() {
 	// Transactions - Running the designed workload.
 	for(std::uint32_t t = 0; t < thread_count; t++) {
 		threads[t] = std::thread(do_transactions_concurrent_timed, std::ref(hash_index), std::ref(wls[t]), wls[t].get_operation_count(), std::ref(timings[t]));
-		utils::stick_thread_to_core(threads[t].native_handle(), t);
+		utils::stick_thread_to_core(threads[t].native_handle(), (t*2)%32 + ((t*2)/32));
 	}
 	for(std::uint32_t t = 0; t < thread_count; t++) {
 		threads[t].join();
 	}
 
-	std::chrono::_V2::system_clock::time_point min_start = timings[0].start;
-	std::chrono::_V2::system_clock::time_point max_end = timings[0].end;
+	// std::chrono::_V2::system_clock::time_point min_start = timings[0].start;
+	// std::chrono::_V2::system_clock::time_point max_end = timings[0].end;
+    // std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(timings[0].end - timings[0].start).count() << std::endl;
+
+    std::uint32_t total_throughput = 0;
 
 	for(std::uint32_t t = 1; t < thread_count; t++) {
-		if (timings[t].start < min_start) {
-			min_start = timings[t].start;
-		}
-		if (timings[t].end > max_end) {
-			max_end = timings[t].end;
-		}
+		total_throughput += wls[t].get_operation_count()*1000/timings[t].get_duration_milliseconds();
+		// if (timings[t].start < min_start) {
+		// 	min_start = timings[t].start;
+		// }
+		// if (timings[t].end > max_end) {
+		// 	max_end = timings[t].end;
+		// }
+        // std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(timings[t].end - timings[t].start).count() << std::endl;
 	}
-	return std::chrono::duration_cast<std::chrono::milliseconds>(max_end-min_start).count();
+	return total_throughput; 
+	// return std::chrono::duration_cast<std::chrono::milliseconds>(max_end-min_start).count();
 }
 
 }
