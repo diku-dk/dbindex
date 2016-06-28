@@ -10,6 +10,7 @@
 #include "workload.h"
 #include "core_workloads.h"
 #include "ycsb_util.h"
+#include "../../util/thread_util.h"
 
 namespace ycsb {
 
@@ -29,17 +30,13 @@ class client {
     std::uint32_t run_map_locked(std::map<std::string, std::string>& shared_map, std::uint8_t thread_count, std::uint32_t operation_count);
     std::uint32_t run_data_gen(std::uint8_t thread_count, std::uint32_t operation_count);
 
-
-    
-
-
     ~client() {}
     
  protected:
-
     dbindex::abstract_index& hash_index;
     std::uint8_t thread_count;
     const workload_properties wl_p;
+    std::uint32_t calc_throughput(utils::timing_obj timings[], workload wls[], std::uint8_t thread_count);
 };
 
 }
