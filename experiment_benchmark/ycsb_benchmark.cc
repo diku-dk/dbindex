@@ -76,11 +76,11 @@ std::string workload_to_string(ycsb::workload_properties workload_x) {
     return "workload_a";
 }
 
-void test_workload(std::uint8_t thread_count, std::string workload_string, std::uint8_t hash_func_num, std::uint8_t hash_index_num) {
+void test_workload(std::uint8_t thread_count, std::string workload_string, std::uint8_t hash_func_num, std::uint8_t hash_index_num, std::string file_suffix) {
     using namespace std::chrono;
 
-    constexpr size_t directory_size = 1<<10;
-    constexpr size_t initial_global_depht = 10;
+    constexpr size_t directory_size = 1<<17;
+    constexpr size_t initial_global_depht = 17;
     constexpr std::uint8_t prefix_bits = 4;
     constexpr std::uint32_t mod_value = 1<<31;
     constexpr std::uint32_t MAX_KEY_LEN_VAL = 14;
@@ -148,7 +148,7 @@ void test_workload(std::uint8_t thread_count, std::string workload_string, std::
 	auto ops = 100000;
 
         std::ofstream out_file;
-        std::string path = "../Thesis/results/lock_test.txt";
+        std::string path = "../Thesis/results/lock_test" + file_suffix + ".txt";
         std::cout << path << std::endl;
         out_file.open (path);
         out_file.clear();
@@ -191,7 +191,7 @@ void test_workload(std::uint8_t thread_count, std::string workload_string, std::
 	auto ops = 100000;
 
         std::ofstream out_file;
-        std::string path = "../Thesis/results/map_test.txt";
+        std::string path = "../Thesis/results/map_test" + file_suffix + ".txt";
         std::cout << path << std::endl;
         out_file.open (path);
         out_file.clear();
@@ -208,7 +208,7 @@ void test_workload(std::uint8_t thread_count, std::string workload_string, std::
             std::cout << "Thread count: " << t << ": " << std::endl;
             for(std::uint32_t i = 0; i < iterations; i++) 
             {
-                throughputs[t*iterations + i] = workload.operation_count*1000*(t+1)/client.run_map(shared_map, t+1, ops);
+                throughputs[t*iterations + i] = client.run_map(shared_map, t+1, ops); // workload.operation_count*1000*(t+1)/client.run_map(shared_map, t+1, ops);
                 std::cout << "Iteration: " << i << ": " <<  throughputs[t*iterations + i] << std::endl;
             }
             // Calculating the performance
@@ -238,7 +238,7 @@ void test_workload(std::uint8_t thread_count, std::string workload_string, std::
 	auto ops = 100000;
 
         std::ofstream out_file;
-        std::string path = "../Thesis/results/map_locked_test.txt";
+        std::string path = "../Thesis/results/map_locked_test" + file_suffix + ".txt";
         std::cout << path << std::endl;
         out_file.open (path);
         out_file.clear();
@@ -289,7 +289,7 @@ void test_workload(std::uint8_t thread_count, std::string workload_string, std::
     std::cout << "Opening file" << std::endl;
         // Opening Data File
     std::ofstream out_file;
-    std::string path = "../Thesis/results/" + hash_func_string + "_" + hash_index_string + "_" + workload_string + ".txt";
+    std::string path = "../Thesis/results/" + hash_func_string + "_" + hash_index_string + "_" + workload_string + file_suffix + ".txt";
     std::cout << path << std::endl;
     out_file.open (path);
     out_file.clear();
@@ -342,6 +342,7 @@ int main(int argc, char *argv[]) {
     std::uint8_t hash_func_num  = 2;
     std::uint8_t hash_index_num = 0;
     std::uint8_t thread_count   = 16;
+    std::string file_suffix = "";
 
     if (argc < 5) {
         std::cout << "You must provide the following arguments:\n\t1. Workload\n\t2. Hash function\n\t3. Hash index\n\t4. Thread count\n" << std::endl;
@@ -375,6 +376,8 @@ int main(int argc, char *argv[]) {
     hash_index_num  = (std::uint8_t)(argv[3][0]-'0');
     thread_count    = std::atoi(argv[4]);
 
+    if (argc > 5)
+	file_suffix = argv[5];
 
-    test_workload(thread_count, workload_string, hash_func_num, hash_index_num);
+    test_workload(thread_count, workload_string, hash_func_num, hash_index_num, file_suffix);
 }
