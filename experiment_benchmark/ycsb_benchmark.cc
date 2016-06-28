@@ -16,9 +16,6 @@
 #include "../src/benchmarks/ycsb/client.h"
 #include "../src/benchmarks/ycsb/core_workloads.h"
 
-#define _USE_GLOBAL_LOCKS
-#define _USE_LOCAL_LOCKS
-
 typedef std::uint32_t hash_value_t;
 
 ycsb::workload_properties parse_workload_string(std::string workload_string) {

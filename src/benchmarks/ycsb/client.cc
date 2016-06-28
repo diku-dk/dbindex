@@ -34,6 +34,8 @@ void do_transactions_concurrent_timed(dbindex::abstract_index& hash_index, workl
 		wl.do_transaction(hash_index);
 	}
 	timing.set_end(std::chrono::high_resolution_clock::now());
+	//std::cout << "Thread Throughput: " << operation_count*1000/timing.get_duration_milliseconds() << std::endl;
+
 }
 /********* Debugging only, Do delete ***********/
 

@@ -229,7 +229,7 @@ namespace dbindex {
         }
         void insert_internal_exclusive(const std::string& key, const std::string& new_value) {
             #ifdef _USE_GLOBAL_LOCKS 
-            boost::uniqueGLOBAL__lock<boost::shared_mutex> global_exclusive_lock(global_mutex); 
+            boost::unique_lock<boost::shared_mutex> global_exclusive_lock(global_mutex); 
             #endif
 
             // Search for free slot

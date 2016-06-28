@@ -31,6 +31,9 @@
 
 #define CACHE_LINE_SIZE 64
 
+//#define _USE_GLOBAL_LOCKS
+//#define _USE_LOCAL_LOCKS
+
 
 
 #endif /* SRC_MACROS_H_ */
