@@ -255,7 +255,7 @@ void test_workload(std::uint8_t thread_count, std::string workload_string, std::
             std::cout << "Thread count: " << t << ": " << std::endl;
             for(std::uint32_t i = 0; i < iterations; i++) 
             {
-                throughputs[t*iterations + i] = workload.operation_count*1000*(t+1)/client.run_map_locked(shared_map, t+1, ops);
+                throughputs[t*iterations + i] = client.run_map_locked(shared_map, t+1, ops); //workload.operation_count*1000*(t+1)/client.run_map_locked(shared_map, t+1, ops);
                 std::cout << "Iteration: " << i << ": " <<  throughputs[t*iterations + i] << std::endl;
             }
             // Calculating the performance
@@ -305,7 +305,7 @@ void test_workload(std::uint8_t thread_count, std::string workload_string, std::
         std::cout << "Thread count: " << t << ": " << std::endl;
         for(std::uint32_t i = 0; i < iterations; i++) 
         {
-            throughputs[t*iterations + i] = workload.operation_count*1000*(t+1)/client.run_transactions(t+1);
+            throughputs[t*iterations + i] = client.run_transactions(t+1); //workload.operation_count*1000*(t+1)/client.run_transactions(t+1);
             std::cout << "Iteration: " << i << ": " <<  throughputs[t*iterations + i] << std::endl;
         }
         // Calculating the performance

@@ -259,11 +259,11 @@ std::uint32_t client::run_workload() {
 std::uint32_t client::calc_throughput(utils::timing_obj timings[], workload wls[], std::uint8_t thread_count) {
 	// std::chrono::_V2::system_clock::time_point min_start = timings[0].start;
 	// std::chrono::_V2::system_clock::time_point max_end = timings[0].end;
-    // std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(timings[0].end - timings[0].start).count() << std::endl;
+	// std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(timings[0].end - timings[0].start).count() << std::endl;
 
-    std::uint32_t total_throughput = 0;
-
-	for(std::uint32_t t = 1; t < thread_count; t++) {
+	std::uint32_t total_throughput = 0;
+	for(std::uint32_t t = 0; t < thread_count; t++) {
+		std::cout << wls[t].get_operation_count()*1000/timings[t].get_duration_milliseconds() << std::endl;
 		total_throughput += wls[t].get_operation_count()*1000/timings[t].get_duration_milliseconds();
 		// if (timings[t].start < min_start) {
 		// 	min_start = timings[t].start;
@@ -271,7 +271,7 @@ std::uint32_t client::calc_throughput(utils::timing_obj timings[], workload wls[
 		// if (timings[t].end > max_end) {
 		// 	max_end = timings[t].end;
 		// }
-        // std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(timings[t].end - timings[t].start).count() << std::endl;
+		// std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(timings[t].end - timings[t].start).count() << std::endl;
 	}
 	return total_throughput; 
 	// return std::chrono::duration_cast<std::chrono::milliseconds>(max_end-min_start).count();
