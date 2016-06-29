@@ -51,6 +51,7 @@ class workload {
     size_t max_value_len;
     std::uint32_t record_count;
     std::uint32_t operation_count;
+    std::string value;
 
     std::uint32_t rand_char_seed;
 
@@ -89,8 +90,7 @@ inline void workload::do_insert(dbindex::abstract_index& hash_index) {
     std::string key = next_sequence_key();
     // std::cout << "key found" << std::endl;
     // std::cout << "Key: " << key << std::endl;
-    std::string value;
-    
+
 
     // std::cout << "building value" << std::endl;
     build_value(value);
@@ -125,7 +125,6 @@ inline void workload::do_transaction(dbindex::abstract_index& hash_index) {
 
 inline void workload::do_transaction_read(dbindex::abstract_index& hash_index) {
     const std::string& key = next_transaction_key();
-    std::string value;
 
     hash_index.get(key, value);
 }
@@ -133,7 +132,6 @@ inline void workload::do_transaction_read(dbindex::abstract_index& hash_index) {
 
 inline void workload::do_transaction_insert(dbindex::abstract_index& hash_index) {
     const std::string& key = std::to_string(key_selector->next());
-    std::string value;
 
     build_value(value);
     hash_index.insert(key, value);
@@ -141,8 +139,7 @@ inline void workload::do_transaction_insert(dbindex::abstract_index& hash_index)
 
 inline void workload::do_transaction_read_modify_write(dbindex::abstract_index& hash_index) {
     const std::string& key = next_transaction_key();
-    std::string value;
-    
+
     hash_index.get(key, value);
     build_value(value);
     hash_index.update(key, value);
@@ -150,7 +147,6 @@ inline void workload::do_transaction_read_modify_write(dbindex::abstract_index& 
 
 inline void workload::do_transaction_update(dbindex::abstract_index& hash_index) {
     const std::string& key = next_transaction_key();
-    std::string value;
 
     build_value(value);
     hash_index.update(key, value);
@@ -163,7 +159,7 @@ inline void workload::do_transaction_range_scan(dbindex::abstract_index& hash_in
 
     limit_push_op.set_len(next_scan_length());
     
-    hash_index.range_scan(start_key, &end_key, limit_push_op);
+    hash_index.range_scan(start_key, nullptr, limit_push_op);
 }
 
 }

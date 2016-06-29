@@ -5,6 +5,8 @@
 #include <cmath>
 #include <cassert>
 #include <climits>
+#include <chrono>
+#include <thread>
 #include "abstract_generator.h"
 #include "../ycsb_util.h"
 
@@ -24,6 +26,9 @@ class zipfian_generator : public abstract_generator<value_t> {
         alpha_ = 1.0 / (1.0 - theta);
         raise_zeta(num_items);
         eta_ = eta();
+
+        std::uint32_t seedval = static_cast<std::uint32_t>(std::chrono::high_resolution_clock::now().time_since_epoch().count()) ^ (std::uint32_t) std::hash<std::thread::id>()(std::this_thread::get_id());
+        srand48_r(seedval, &rand_buffer);
         
         next();
     }
@@ -37,6 +42,8 @@ class zipfian_generator : public abstract_generator<value_t> {
     value_t last() { return last_value; }
     
  private:
+    struct drand48_data rand_buffer;
+
     ///
     /// Compute the zeta constant needed for the distribution.
     /// Remember the number of items, so if it is changed, we can recompute zeta.
@@ -88,7 +95,9 @@ inline value_t zipfian_generator<value_t>::next(value_t num) {
         eta_ = eta();
     }
     
-    double u = utils::random_double();
+    double u;
+    drand48_r(&rand_buffer, &u);
+    
     double uz = u * zeta_n;
     
     if (uz < 1.0) {
