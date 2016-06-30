@@ -104,7 +104,7 @@ namespace dbindex {
 			hash_value_t hash_value = hash.get_hash(key);
 			std::uint32_t bucket_number = hash_value & (directory_size-1);
 
-			#ifdef _USE_LOCAL_LOCKS
+			#if defined(_USE_LOCAL_LOCKS) || defined(_USE_LOCAL_INSERT_LOCKS)
 			boost::shared_lock<boost::shared_mutex> local_shared_lock(bucket_mutexes[bucket_number]);
 			#endif
 			if (directory[bucket_number]) {
@@ -118,7 +118,7 @@ namespace dbindex {
 					}
 				}
 			}
-			#ifdef _USE_LOCAL_LOCKS
+			#if defined(_USE_LOCAL_LOCKS) || defined(_USE_LOCAL_INSERT_LOCKS)
 			local_shared_lock.unlock();
 			#endif
 			return false;
@@ -153,7 +153,7 @@ namespace dbindex {
 			if (directory[bucket_number]) {
 				for (uint32_t i = 0; i < directory[bucket_number]->keys.size(); i++) {
 					if (strcmp(directory[bucket_number]->keys[i].c_str(), key.c_str()) == 0) {
-						directory[bucket_number]->values[i] = new_value;
+						directory[bucket_number]->values[i].assign(new_value);
 						break;
 					}
 				}
@@ -163,7 +163,6 @@ namespace dbindex {
 			#endif
 		}
 
-		// Returns deleted value, if found, -1 otherwise
 		void remove(const std::string& key) override {
 			hash_value_t hash_value = hash.get_hash(key);
 			std::uint32_t bucket_number = hash_value & (directory_size-1);

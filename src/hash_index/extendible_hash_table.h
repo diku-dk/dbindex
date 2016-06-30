@@ -72,7 +72,7 @@ namespace dbindex {
         std::uint8_t global_depth = initial_global_depth;
         std::vector<hash_bucket*> directory{directory_size()};
 
-        #ifdef _USE_GLOBAL_LOCKS 
+        #ifdef _USE_GLOBAL_LOCK
         boost::shared_mutex global_mutex; 
         #endif
 
