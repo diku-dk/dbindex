@@ -153,7 +153,7 @@ namespace dbindex {
 			if (directory[bucket_number]) {
 				for (uint32_t i = 0; i < directory[bucket_number]->keys.size(); i++) {
 					if (strcmp(directory[bucket_number]->keys[i].c_str(), key.c_str()) == 0) {
-						directory[bucket_number]->values[i].assign(new_value);
+						directory[bucket_number]->values[i] = new_value;
 						break;
 					}
 				}

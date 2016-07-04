@@ -1,6 +1,6 @@
 CXX = g++
 CXXFLAGS = -std=c++11 -Wall -MMD -fno-omit-frame-pointer
-LDFLAGS = -lpthread -lboost_system -lboost_thread -lgtest
+LDFLAGS = -lpthread -latomic -lboost_system -lboost_thread -lgtest
 LDTESTFLAG = -lcppunit 
 OPTFLAG = -O2 -funroll-loops
 BUILD_DIR = bin

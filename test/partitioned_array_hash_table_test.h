@@ -18,7 +18,7 @@ namespace dbindex {
 	constexpr std::uint32_t directory_size = 4;
 	constexpr std::uint8_t prefix_bits = 4;
 
-	class partitioned_array_hash_table_test : public common_hash_table_test<mod_hash<hash_value_t, (1<<31)>, partitioned_array_hash_table<prefix_bits, directory_size>> {
+	class partitioned_array_hash_table_test : public common_hash_table_test {
 	private:
 		mod_hash<hash_value_t, (1<<31)> hash{};
 		partitioned_array_hash_table<prefix_bits, directory_size> hash_table{hash};

@@ -19,7 +19,7 @@ namespace dbindex {
 
 	constexpr std::uint8_t initial_global_depht = 2;
 
-	class extendible_hash_table_test : public common_hash_table_test<mod_hash<hash_value_t, (1<<31)>, extendible_hash_table<initial_global_depht>> {
+	class extendible_hash_table_test : public common_hash_table_test {
 	private:
 		mod_hash<hash_value_t, (1<<31)> hash{};
 		extendible_hash_table<initial_global_depht> hash_table{hash};

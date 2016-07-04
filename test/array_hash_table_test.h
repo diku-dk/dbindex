@@ -25,7 +25,7 @@ namespace dbindex {
 		}
 	}
 
-	class array_hash_table_test : public common_hash_table_test<mod_hash<hash_value_t, (1<<31)>, array_hash_table<_directory_size>> {
+	class array_hash_table_test : public common_hash_table_test {
 	private:
 		mod_hash<hash_value_t, (1<<31)> hash{};
 		array_hash_table<_directory_size> hash_table{hash};

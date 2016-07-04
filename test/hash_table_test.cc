@@ -18,6 +18,7 @@ int main(int argc, char *argv[]) {
 	runner.addTest( dbindex::extendible_hash_table_test::suite() );
 	runner.addTest( dbindex::array_hash_table_test::suite() );
 	runner.addTest( dbindex::partitioned_array_hash_table_test::suite() );
+	// runner.addTest( dbindex::occ_array_hash_table_test::suite() );
 
 	runner.run();
 	std::cout << "end" << std::endl;

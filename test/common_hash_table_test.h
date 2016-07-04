@@ -104,17 +104,14 @@ namespace dbindex {
         }
     };
 
-	template <typename hash_type, typename index_type>
 	class common_hash_table_test : public CppUnit::TestFixture {
 	private:
-		hash_type& hash;
-		index_type& hash_table;
+		abstract_hash<std::uint32_t>& hash;
+		abstract_index& hash_table;
 		concat_push_op concat_push;
 
 	public:
-		common_hash_table_test(hash_type& _hash, index_type& _hash_table) : hash(_hash), hash_table(_hash_table) {
-			static_assert(std::is_base_of<abstract_hash<value_t>, hash_type>::value, "hash_type must inherit from abstract_hash<value_t>");
-			static_assert(std::is_base_of<abstract_index, index_type>::value, "index_type must inherit from abstract_index");
+		common_hash_table_test(abstract_hash<std::uint32_t>& _hash, abstract_index& _hash_table) : hash(_hash), hash_table(_hash_table) {
 		}
 
 		void setUp() {
@@ -128,9 +125,11 @@ namespace dbindex {
 			// std::cout << hash_table.to_string() << std::endl;
 			std::cout << "TEST_INSERT" << std::endl;
 			CPPUNIT_ASSERT(is_table_empty());
-			hash_table.insert("00", "10");
+			hash_table.insert("01", "10");
+			std::cout << "Insert worked" << std::endl;
 			CPPUNIT_ASSERT(!is_table_empty());
 			CPPUNIT_ASSERT(hash_table.size() == 1);
+			std::cout << "done" << std::endl;
 		}
 
 
