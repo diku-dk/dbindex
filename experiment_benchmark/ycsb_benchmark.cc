@@ -152,7 +152,7 @@ void test_workload(std::uint8_t thread_count_max, std::string workload_string, s
 	constexpr std::uint32_t mod_value       = 1<<31;
 	ycsb::workload_properties workload = parse_workload_string(workload_string);
 
-	std::uint32_t iterations = 5;
+	std::uint32_t iterations = 15;
 
 	std::uint32_t throughputs[iterations*thread_count_max];
 
@@ -163,10 +163,11 @@ void test_workload(std::uint8_t thread_count_max, std::string workload_string, s
 	client.run_build_records(1);
 
 	if (workload_string == "workload_hash_func") {
-		auto ops = 100000;
+		auto ops = 2500000;
+		workload.operation_count = ops;
 
 		std::ofstream out_file;
-		std::string path = "../Thesis/results/hash_func_test" + file_suffix + ".txt";
+		std::string path = "../Thesis/results/hash_func_test_" + hash_func_string + file_suffix + ".txt";
 		std::cout << path << std::endl;
 		out_file.open (path);
 		out_file.clear();
@@ -617,8 +618,8 @@ int main(int argc, char *argv[]) {
 	std::string max_key_len_string = "_max_key_len";
 	std::string global_depth_string = "_global_depth";
 	std::string prefix_bits_string = "_prefix_bits";
-
-	if (workload_string.substr(workload_string.length()-dir_size_string.length())==dir_size_string) {
+	
+	if (workload_string.length() > dir_size_string.length() && workload_string.substr(workload_string.length()-dir_size_string.length())==dir_size_string) {
 		assert(hash_index_num == 0 || hash_index_num == 2);
 		constexpr std::uint8_t max_directory_depth = 20;
 		workload_string = workload_string.substr(0, workload_string.length()-dir_size_string.length());
@@ -641,7 +642,7 @@ int main(int argc, char *argv[]) {
 		if (out_file.fail())
 		  std::cout << "Something failed" << std::endl;
 		out_file.close();
-	} else if (workload_string.substr(workload_string.length()-global_depth_string.length())==global_depth_string) {
+	} else if (workload_string.length() > global_depth_string.length() && workload_string.substr(workload_string.length()-global_depth_string.length())==global_depth_string) {
 		assert(hash_index_num == 1);
 		constexpr std::uint8_t max_initial_global_depth = 20;
 		workload_string = workload_string.substr(0, workload_string.length()-global_depth_string.length());
@@ -664,7 +665,7 @@ int main(int argc, char *argv[]) {
 		if (out_file.fail())
 		  std::cout << "Something failed" << std::endl;
 		out_file.close();
-	} else if (workload_string.substr(workload_string.length()-prefix_bits_string.length())==prefix_bits_string) {
+	} else if (workload_string.length() > prefix_bits_string.length() && workload_string.substr(workload_string.length()-prefix_bits_string.length())==prefix_bits_string) {
 		assert(hash_index_num == 2);
 		constexpr std::uint8_t max_prefix_bits = 31;
 		workload_string = workload_string.substr(0, workload_string.length()-prefix_bits_string.length());
@@ -687,7 +688,7 @@ int main(int argc, char *argv[]) {
 		if (out_file.fail())
 		  std::cout << "Something failed" << std::endl;
 		out_file.close();
-	// } else if (workload_string.substr(workload_string.length()-max_key_len_string.length())==max_key_len_string) {
+	// } else if (workload_string.length() > max_key_len_string.length() && workload_string.substr(workload_string.length()-max_key_len_string.length())==max_key_len_string) {
 	// 	constexpr std::uint8_t max_key_len = 64;
 	// 	workload_string = workload_string.substr(0, workload_string.length()-max_key_len_string.length());
 	// 	ycsb::workload_properties workload = parse_workload_string(workload_string);
