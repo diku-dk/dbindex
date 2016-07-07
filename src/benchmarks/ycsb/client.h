@@ -29,7 +29,7 @@ class client {
     std::uint32_t run_map(std::map<std::string, std::string>& shared_map, std::uint8_t thread_count, std::uint32_t operation_count);
     std::uint32_t run_map_locked(std::map<std::string, std::string>& shared_map, std::uint8_t thread_count, std::uint32_t operation_count);
     std::uint32_t run_data_gen(std::uint8_t thread_count, std::uint32_t operation_count);
-    std::uint32_t run_hash_func(dbindex::abstract_hash<std::uint32_t>& hash, std::uint8_t thread_count, std::uint32_t operation_count);
+    std::uint32_t run_hash_func(dbindex::abstract_hash<std::uint32_t>& hash, std::vector<std::vector<std::string>>& keys, std::uint8_t thread_count, std::uint32_t operation_count);
     
 
     ~client() {}

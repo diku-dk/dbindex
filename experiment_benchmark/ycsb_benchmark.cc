@@ -163,8 +163,17 @@ void test_workload(std::uint8_t thread_count_max, std::string workload_string, s
 	client.run_build_records(1);
 
 	if (workload_string == "workload_hash_func") {
-		auto ops = 2500000;
+		std::uint32_t ops = 2500000;
 		workload.operation_count = ops;
+
+		std::vector<std::vector<std::string>> keys{thread_count_max, std::vector<std::string>{ops}};
+		for(std::uint32_t t = 0; t < thread_count_max; t++) {
+			ycsb::workload wl;
+			wl.init(workload);
+			for(std::uint32_t i = 0; i < ops; i++) {
+				keys[t].push_back(wl.next_transaction_key());
+			}
+		}
 
 		std::ofstream out_file;
 		std::string path = "../Thesis/results/hash_func_test_" + hash_func_string + file_suffix + ".txt";
@@ -178,7 +187,7 @@ void test_workload(std::uint8_t thread_count_max, std::string workload_string, s
 		for(std::uint32_t t = 0; t < thread_count_max; t++) {
 			std::cout << "Thread count: " << t << ": " << std::endl;
 			for(std::uint32_t i = 0; i < iterations; i++) {
-				throughputs[t*iterations + i] = client.run_hash_func(*hash, t+1, ops);
+				throughputs[t*iterations + i] = client.run_hash_func(*hash, keys, t+1, ops);
 				std::cout << "Iteration: " << i << ": " <<  throughputs[t*iterations + i] << std::endl;
 			}
 			// Calculating the performance
@@ -522,51 +531,64 @@ template <>
 void test_prefix_bits<0>(std::uint8_t thread_count, ycsb::workload_properties workload, std::string hash_func_string, std::string file_suffix, std::ofstream& out_file) {
 	// Ending the recursion
 }
+template <std::uint8_t max_key_len>
+void test_max_key_len(std::uint8_t thread_count, ycsb::workload_properties workload, std::string hash_func_string, std::string hash_index_string, std::string file_suffix, std::ofstream& out_file) {
+	using namespace std::chrono;
 
-// template <std::uint8_t max_key_len>
-// void test_max_key_len(std::uint8_t thread_count, ycsb::workload_properties workload, std::string hash_func_string, std::string hash_index_string, std::string file_suffix, std::ofstream& out_file) {
-// 	using namespace std::chrono;
+	constexpr std::uint32_t directory_depth = 17;
+	constexpr std::uint32_t directory_size  = 1<<directory_depth;
+	constexpr std::uint8_t prefix_bits      = 4;
+	constexpr std::uint32_t mod_value       = 1<<31;
 
-// 	constexpr std::uint32_t directory_size = 1<<17;
-// 	constexpr std::uint8_t prefix_bits = 4;
-// 	constexpr std::uint32_t mod_value = 1<<31;
+	dbindex::abstract_hash<hash_value_t>* hash = calc_hash_func<mod_value, max_key_len>(hash_func_string);
+	dbindex::abstract_index* hash_index = calc_hash_index<directory_depth, prefix_bits>(hash, hash_index_string);
+	std::cout << "Using max_key_len = " << (int)max_key_len << std::endl;
+		// Building client, inserting records.
+	ycsb::client client(*hash_index, workload);
+	client.run_build_records(1);
+	std::cout << "Records built" << std::endl;
 
-// 	dbindex::abstract_hash<hash_value_t>* hash = calc_hash_func<mod_value, max_key_len>(hash_func_string);
-// 	dbindex::abstract_index* hash_index = calc_hash_index<directory_depth, prefix_bits>(hash, hash_index_string);
-// 	std::cout << "Using max_key_len = " << (int)max_key_len << std::endl;
-// 		// Building client, inserting records.
-// 	ycsb::client client(*hash_index, workload);
-// 	client.run_build_records(1);
-// 	std::cout << "Records built" << std::endl;
+		// Running experiments 
+	std::uint32_t iterations = 25;
+	std::uint32_t throughputs[iterations]; 
 
-// 		// Running experiments 
-// 	std::uint32_t iterations = 25;
-// 	std::uint32_t throughputs[iterations]; 
+	std::cout << "Running benchmark with " << workload_to_string(workload) << std::endl;
+	for(std::uint32_t i = 0; i < iterations; i++) 
+	{
+		throughputs[i] = client.run_transactions(thread_count);
+		std::cout << "Iteration: " << i << ": " <<  throughputs[i] << std::endl;
 
-// 	std::cout << "Running benchmark with " << workload_to_string(workload) << std::endl;
-// 	for(std::uint32_t i = 0; i < iterations; i++) 
-// 	{
-// 		throughputs[i] = client.run_transactions(thread_count);
-// 		std::cout << "Iteration: " << i << ": " <<  throughputs[i] << std::endl;
-// 	}
+		// Fixing if new inserts were done
+		if (workload.insert_proportion > 0 && i+1 < iterations) {
+			delete hash_index;
+			delete hash;
 
-// 	double mean, std_dev;
-// 	calc_performance_results(iterations, &throughputs[0], mean, std_dev);
+			dbindex::abstract_hash<hash_value_t>* hash = calc_hash_func<mod_value, max_key_len>(hash_func_string);
+			dbindex::abstract_index* hash_index = calc_hash_index<directory_depth, prefix_bits>(hash, hash_index_string);
+			
+			// Building client, inserting records.
+			ycsb::client client(*hash_index, workload);
+			client.run_build_records(1);
+		}
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
 
-// 	// Writing data to file
-// 	out_file << directory_size << "\t" << mean << "\t" << std_dev << "\t" << utils::get_peak_RSS() << "\t" << utils::get_current_RSS() << "\n";
-// 	std::cout << "Data written" << std::endl;
-// 	out_file.flush();
+	double mean, std_dev;
+	calc_performance_results(iterations, &throughputs[0], mean, std_dev);
+
+	// Writing data to file
+	out_file << directory_size << "\t" << mean << "\t" << std_dev << "\t" << utils::get_peak_RSS() << "\t" << utils::get_current_RSS() << "\n";
+	std::cout << "Data written" << std::endl;
+	out_file.flush();
 	
-	
-// 	delete hash_index;
-// 	delete hash;
-// 	test_max_key_len<directory_depth-1>(thread_count, workload, hash_func_string, hash_index_string, file_suffix, out_file);
-// }
-// template <>
-// void test_max_key_len<0>(std::uint8_t thread_count, ycsb::workload_properties workload, std::string hash_func_string, std::string hash_index_string, std::string file_suffix, std::ofstream& out_file) {
-// 	// Ending the recursion
-// }
+	delete hash_index;
+	delete hash;
+	test_max_key_len<directory_depth-1>(thread_count, workload, hash_func_string, hash_index_string, file_suffix, out_file);
+}
+template <>
+void test_max_key_len<0>(std::uint8_t thread_count, ycsb::workload_properties workload, std::string hash_func_string, std::string hash_index_string, std::string file_suffix, std::ofstream& out_file) {
+	// Ending the recursion
+}
 
 int main(int argc, char *argv[]) {
 	std::string workload_string   = "workload_a";
@@ -688,28 +710,29 @@ int main(int argc, char *argv[]) {
 		if (out_file.fail())
 		  std::cout << "Something failed" << std::endl;
 		out_file.close();
-	// } else if (workload_string.length() > max_key_len_string.length() && workload_string.substr(workload_string.length()-max_key_len_string.length())==max_key_len_string) {
-	// 	constexpr std::uint8_t max_key_len = 64;
-	// 	workload_string = workload_string.substr(0, workload_string.length()-max_key_len_string.length());
-	// 	ycsb::workload_properties workload = parse_workload_string(workload_string);
-
-	// 	std::ofstream out_file;
-	// 	std::string path = "../Thesis/results/" + hash_func_string + "_" + hash_index_string + "_" + workload_string + max_key_len_string + file_suffix + ".txt";
-	// 	std::cout << path << std::endl;
-	// 	out_file.open (path);
-	// 	out_file.clear();
-	// 	if (!out_file.is_open()) {
-	// 		std::cout << "Data file isn't open." << std::endl;
-	// 		return -1;
-	// 	}
-	// 	std::cout << "File opened" << std::endl;
-
-	// 	test_max_key_len<max_directory_depth>(thread_count_max, workload, hash_func_string, hash_index_string, file_suffix, out_file);
 	
-	// 	out_file.flush();
-	// 	if (out_file.fail())
-	// 	  std::cout << "Something failed" << std::endl;
-	// 	out_file.close();
+	} else if (workload_string.length() > max_key_len_string.length() && workload_string.substr(workload_string.length()-max_key_len_string.length())==max_key_len_string) {
+		constexpr std::uint8_t max_key_len = 64;
+		workload_string = workload_string.substr(0, workload_string.length()-max_key_len_string.length());
+		ycsb::workload_properties workload = parse_workload_string(workload_string);
+
+		std::ofstream out_file;
+		std::string path = "../Thesis/results/" + hash_func_string + "_" + hash_index_string + "_" + workload_string + max_key_len_string + file_suffix + ".txt";
+		std::cout << path << std::endl;
+		out_file.open (path);
+		out_file.clear();
+		if (!out_file.is_open()) {
+			std::cout << "Data file isn't open." << std::endl;
+			return -1;
+		}
+		std::cout << "File opened" << std::endl;
+
+		test_max_key_len<max_key_len>(thread_count_max, workload, hash_func_string, hash_index_string, file_suffix, out_file);
+	
+		out_file.flush();
+		if (out_file.fail())
+		  std::cout << "Something failed" << std::endl;
+		out_file.close();
 	} else {
 		test_workload(thread_count_max, workload_string, hash_func_string, hash_index_string, file_suffix);
 	}
