@@ -292,11 +292,6 @@ namespace dbindex {
 			}
 			return total_entry_count;
 		}
-
-        std::string to_string() override {
-            return "array_hash_table";
-        }
-
 	};
 }
 

@@ -89,6 +89,14 @@ void do_data_gen_timed(workload& wl, std::uint32_t operation_count, utils::timin
 	timing.set_end(std::chrono::high_resolution_clock::now());
 }
 
+void do_hash_func_timed(dbindex::abstract_hash<std::uint32_t>& hash, std::vector<std::string>& keys, std::uint32_t operation_count, utils::timing_obj& timing) { 
+	timing.set_start(std::chrono::high_resolution_clock::now());
+	for (std::uint32_t i = 0; i < operation_count; i++) {
+	    hash.get_hash(keys[i]);
+	}
+	timing.set_end(std::chrono::high_resolution_clock::now());
+}
+
 /********* End of debugging ***********/
 
 void client::run_build_records(std::uint8_t thread_count) {
@@ -227,9 +235,35 @@ std::uint32_t client::run_data_gen(std::uint8_t thread_count, std::uint32_t oper
 	return calc_throughput(timings, wls, thread_count);
 }
 
+std::uint32_t client::run_hash_func(dbindex::abstract_hash<std::uint32_t>& hash, std::uint8_t thread_count, std::uint32_t operation_count) {
+	std::thread threads[thread_count];
+	utils::timing_obj timings[thread_count];
+	workload wls[thread_count];
+
+	std::vector<std::string> keys[thread_count];
+
+	// Insertions 	- Initialization of the index
+	for(std::uint32_t t = 0; t < thread_count; t++) {
+		for(std::uint32_t i = 0; i < operation_count; i++) {
+			keys[t][i] = wls[t].next_transaction_key();
+		}
+	}
+		
+	for(std::uint32_t t = 0; t < thread_count; t++) {
+		wls[t].init(wl_p);
+		threads[t] = std::thread(do_hash_func_timed, std::ref(hash), std::ref(keys[t]), operation_count, std::ref(timings[t]));
+		utils::stick_thread_to_core(threads[t].native_handle(), (t*2)%32 + ((t*2)/32));
+	}
+	for(std::uint32_t t = 0; t < thread_count; t++) {
+		threads[t].join();
+	}
+
+	return calc_throughput(timings, wls, thread_count);
+}
+
 /********* End of debugging ***********/
 
-std::uint32_t client::run_workload() {
+std::uint32_t client::run_workload(std::uint8_t thread_count) {
 	std::thread threads[thread_count];
 	utils::timing_obj timings[thread_count];
 	workload wls[thread_count];

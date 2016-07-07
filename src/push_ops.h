@@ -85,23 +85,19 @@ struct greater_than_hash_entry : hash_entry_comp {
 template <typename cmp>
 class partitioned_push_op : public abstract_push_op {
 private:
-    std::string prefix;
     std::priority_queue<hash_entry, std::vector<hash_entry>, cmp> pri_queue;
 public:
-    partitioned_push_op(std::string _prefix) : prefix(_prefix){
+    partitioned_push_op(){
         static_assert(std::is_base_of<hash_entry_comp, cmp>::value, "hash_entry comparator must inherit from hash_entry_comp");
     }
 
     ~partitioned_push_op() {}
     
     bool invoke(const char* keyp, size_t keylen, const std::string& value) {
-        pri_queue.push(std::make_tuple(prefix + std::string(keyp, keylen), value));
+        pri_queue.push(std::make_tuple(std::string(keyp, keylen), value));
         return true;
     }
 
-    void set_prefix(std::string _prefix) {
-        prefix = _prefix;
-    }
     std::priority_queue<hash_entry, std::vector<hash_entry>, cmp> get() {
         return pri_queue;
     }

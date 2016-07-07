@@ -126,10 +126,8 @@ namespace dbindex {
 			std::cout << "TEST_INSERT" << std::endl;
 			CPPUNIT_ASSERT(is_table_empty());
 			hash_table.insert("01", "10");
-			std::cout << "Insert worked" << std::endl;
 			CPPUNIT_ASSERT(!is_table_empty());
 			CPPUNIT_ASSERT(hash_table.size() == 1);
-			std::cout << "done" << std::endl;
 		}
 
 
@@ -194,7 +192,7 @@ namespace dbindex {
 			std::vector<std::string> values{key_amount};
 			
             std::default_random_engine generator;
-            std::uniform_int_distribution<std::uint32_t> lower_key_distribution{0, (key_amount/2)-1};
+            std::uniform_int_distribution<std::uint32_t> lower_key_distribution{1, (key_amount/2)-1};
             std::uniform_int_distribution<std::uint32_t> higher_key_distribution{key_amount/2, key_amount-1};
             std::uniform_int_distribution<std::uint32_t> value_distribution{std::numeric_limits<uint32_t>::min(), std::numeric_limits<uint32_t>::max()};
 
@@ -226,8 +224,8 @@ namespace dbindex {
 				if (po.get() != expected_result) {
 					std::cout << "Problem at iteration: " << i << std::endl;
 					auto result = po.get();
-					// std::cout << "Result lengths: " << result.size() << expected_result.size() << std::endl;
-	                for (std::uint32_t i = 0; i < result.size(); i++) {
+					std::cout << "Result lengths: " << result.size() << ", " <<expected_result.size() << std::endl;
+	                for (std::uint32_t i = 0; i < expected_result.size(); i++) {
 	                	if (result[i] != expected_result[i]){}
 	                		// std::cout << "Lengths: " << result[i] << ", " << expected_result[i] << std::endl;
 	                }
@@ -242,6 +240,15 @@ namespace dbindex {
 
 					// Calculating the expected result
 				std::reverse(expected_result.begin(), expected_result.end());
+				if (po.get() != expected_result) {
+					std::cout << "Problem at iteration: " << i << std::endl;
+					auto result = po.get();
+					std::cout << "Result lengths: " << result.size() << ", " <<expected_result.size() << std::endl;
+	                for (std::uint32_t i = 0; i < expected_result.size(); i++) {
+	                	if (result[i] != expected_result[i]){}
+	                		// std::cout << "Lengths: " << result[i] << ", " << expected_result[i] << std::endl;
+	                }
+				}
 
 					// Checking for equality
 				CPPUNIT_ASSERT(po.get() == expected_result);

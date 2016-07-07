@@ -29,7 +29,7 @@ namespace dbindex {
 
             std::vector<std::string> keys;
             std::vector<std::string> values;
-            #ifdef _USE_LOCAL_LOCKS 
+            #ifdef _USE_LOCAL_LOCKS
             boost::shared_mutex local_mutex; 
             #endif
 
@@ -134,18 +134,22 @@ namespace dbindex {
 
         std::uint8_t calc_new_local_depth(hash_bucket *bucket, const hash_value_t new_hash_value, std::uint32_t bucket_number) {
             // Calculating hash values
+            // std::cout << "G" << std::endl;
             int greatest_msb = 0;
             hash_value_t hash_values[bucket_entries+1];
             for (std::uint8_t e = 0; e < bucket_entries; e++) {
                 hash_values[e] = hash.get_hash(bucket->keys[e]);
                 greatest_msb = std::min(greatest_msb, __builtin_clz(hash_values[e]));
             }
+            // std::cout << "H" << std::endl;
             greatest_msb = sizeof(std::uint32_t)*8 - greatest_msb;
             hash_values[bucket_entries] = new_hash_value;
 
+            // std::cout << "I" << std::endl;
             // Checking common digits
             std::uint8_t new_local_depth = 0;
             std::uint8_t common_digit_nums;
+            // std::cout << "J" << std::endl;
             do {
                 new_local_depth++;
                 common_digit_nums = 0;
@@ -154,6 +158,7 @@ namespace dbindex {
                 }
             }
             while (new_local_depth < greatest_msb && (common_digit_nums == 0 || common_digit_nums == bucket_entries+1));
+            // std::cout << "K" << std::endl;
 
             if (new_local_depth == greatest_msb)
                 return -1; // Overflow bucket needed
@@ -168,35 +173,36 @@ namespace dbindex {
             hash_value_t hash_value = hash.get_hash(key);
             // std::cout << "Key: " << key << ", hash_value: " <<  hash_value << std::endl;
             std::uint32_t bucket_number = directory[hash_value & create_bit_mask(global_depth-1)]->original_index;
-
-            #ifdef _USE_LOCAL_LOCKS 
+            // std::cout << "A: " << bucket_number << ", " << directory_size() << std::endl;
+            #ifdef _USE_LOCAL_LOCKS
             boost::unique_lock<boost::shared_mutex> local_exclusive_lock(directory[bucket_number]->local_mutex); 
             #endif
             if(std::find(directory[bucket_number]->keys.begin(), directory[bucket_number]->keys.end(), key) != directory[bucket_number]->keys.end()) { // Key already present.
                 return;
             }
+            // std::cout << "B" << std::endl;
             while (directory[hash_value & create_bit_mask(global_depth-1)]->original_index != bucket_number) { // Ensuring correct bucket number 
-                #ifdef _USE_LOCAL_LOCKS 
+                #ifdef _USE_LOCAL_LOCKS
                 local_exclusive_lock.unlock(); 
                 #endif
+                // std::cout << "B1" << std::endl;
                 bucket_number = directory[hash_value & create_bit_mask(global_depth-1)]->original_index;
-                #ifdef _USE_LOCAL_LOCKS 
+                // std::cout << "B2" << std::endl;
+                #ifdef _USE_LOCAL_LOCKS
                 local_exclusive_lock = boost::unique_lock<boost::shared_mutex>(directory[bucket_number]->local_mutex); 
                 #endif
+                // std::cout << "B3" << std::endl;
+
             }
+            // std::cout << "C" << std::endl;
 
             if (directory[bucket_number]->entry_count < bucket_entries) {
                 directory[bucket_number]->insert_next(key, new_value);
-                #ifdef _USE_LOCAL_LOCKS 
-                local_exclusive_lock.unlock(); 
-                #endif
-                #ifdef _USE_GLOBAL_LOCK
-                global_shared_lock.unlock(); 
-                #endif
                 return;
             } 
             std::uint8_t new_local_depth = calc_new_local_depth(directory[bucket_number], hash_value, bucket_number);
             if (new_local_depth <= global_depth) {
+                // std::cout << "D" << std::endl;
                 std::vector<hash_bucket*> buckets_to_insert = create_split_buckets(directory[bucket_number], bucket_number, key, new_value);
 
                 for (typename std::vector<hash_bucket*>::iterator it = buckets_to_insert.begin(); it != buckets_to_insert.end(); ++it) {
@@ -207,28 +213,24 @@ namespace dbindex {
                         ptr_index += (1<<image_bucket->local_depth);
                     }
                 }
-                #ifdef _USE_LOCAL_LOCKS 
-                local_exclusive_lock.unlock(); 
-                #endif
-                #ifdef _USE_GLOBAL_LOCK
-                global_shared_lock.unlock(); 
-                #endif
                 return;
             } else if (new_local_depth == 255) {
-                std::cout << "new_local_depth " << (std::int32_t)new_local_depth << std::endl;
+                // std::cout << "E" << std::endl;
+                // std::cout << "new_local_depth " << (std::int32_t)new_local_depth << std::endl;
                 throw "Overflow Bucket";
             }
-
-            #ifdef _USE_LOCAL_LOCKS 
+            // std::cout << "F" << std::endl;
+            #ifdef _USE_LOCAL_LOCKS
             local_exclusive_lock.unlock(); 
             #endif
             #ifdef _USE_GLOBAL_LOCK
             global_shared_lock.unlock(); 
             #endif
-            return insert_internal_exclusive(key, new_value);
+            insert_internal_exclusive(key, new_value);
         }
         void insert_internal_exclusive(const std::string& key, const std::string& new_value) {
-            #ifdef _USE_GLOBAL_LOCKS 
+            // std::cout << "EXCL" << std::endl;
+            #ifdef _USE_GLOBAL_LOCK
             boost::unique_lock<boost::shared_mutex> global_exclusive_lock(global_mutex); 
             #endif
 
@@ -238,9 +240,6 @@ namespace dbindex {
 
             if (directory[bucket_number]->entry_count < bucket_entries) {
                 directory[bucket_number]->insert_next(key, new_value);
-                #ifdef _USE_GLOBAL_LOCKS 
-                global_exclusive_lock.unlock(); 
-                #endif
                 return;
             } 
 
@@ -255,9 +254,6 @@ namespace dbindex {
                         ptr_index += (1<<image_bucket->local_depth);
                     }
                 }
-                #ifdef _USE_GLOBAL_LOCKS 
-                global_exclusive_lock.unlock(); 
-                #endif
                 return;
             }
 
@@ -275,9 +271,6 @@ namespace dbindex {
                 directory[image_bucket->original_index] = image_bucket;
             }
             global_depth += splits;
-            #ifdef _USE_GLOBAL_LOCKS 
-            global_exclusive_lock.unlock(); 
-            #endif
         }
 
     public:
@@ -360,27 +353,15 @@ namespace dbindex {
             std::uint32_t bucket_number = hash_value & (directory_size()-1);
 
             // Take local lock shared; 
-            #ifdef _USE_LOCAL_LOCKS 
+            #ifdef _USE_LOCAL_LOCKS
             boost::shared_lock<boost::shared_mutex> local_shared_lock(directory[bucket_number]->local_mutex); 
             #endif
             for (uint8_t i = 0; i < bucket_entries; i++) {
                 if (directory[bucket_number]->keys[i] == key) {
                     value = directory[bucket_number]->values[i];
-                    #ifdef _USE_LOCAL_LOCKS 
-                    local_shared_lock.unlock(); 
-                    #endif
-                    #ifdef _USE_GLOBAL_LOCK
-                    global_shared_lock.unlock(); 
-                    #endif
                     return true;
                 }
             }
-            #ifdef _USE_LOCAL_LOCKS 
-            local_shared_lock.unlock(); 
-            #endif
-            #ifdef _USE_GLOBAL_LOCK
-            global_shared_lock.unlock(); 
-            #endif
             return false;
         }
 
@@ -397,7 +378,7 @@ namespace dbindex {
             #endif
             std::uint32_t bucket_number = hash_value & (directory_size()-1);
             
-            #ifdef _USE_LOCAL_LOCKS 
+            #ifdef _USE_LOCAL_LOCKS
             boost::unique_lock<boost::shared_mutex> local_exclusive_lock(directory[bucket_number]->local_mutex); 
             #endif
             for (uint8_t i = 0; i < bucket_entries; i++) {
@@ -406,12 +387,6 @@ namespace dbindex {
                     break;
                 }
             }
-            #ifdef _USE_LOCAL_LOCKS 
-            local_exclusive_lock.unlock(); 
-            #endif
-            #ifdef _USE_GLOBAL_LOCK
-            global_shared_lock.unlock(); 
-            #endif
         }
 
         void remove(const std::string& key) override {
@@ -420,7 +395,7 @@ namespace dbindex {
             boost::shared_lock<boost::shared_mutex> global_shared_lock(global_mutex); 
             #endif
             std::uint32_t bucket_number = hash_value & (directory_size()-1);
-            #ifdef _USE_LOCAL_LOCKS 
+            #ifdef _USE_LOCAL_LOCKS
             boost::unique_lock<boost::shared_mutex> local_exclusive_lock(directory[bucket_number]->local_mutex); 
             #endif
             for (uint8_t i = 0; i < directory[bucket_number]->entry_count; i++) {
@@ -429,12 +404,6 @@ namespace dbindex {
                     break;
                 }
             }
-            #ifdef _USE_LOCAL_LOCKS 
-            local_exclusive_lock.unlock(); 
-            #endif
-            #ifdef _USE_GLOBAL_LOCK
-            global_shared_lock.unlock(); 
-            #endif
         }
 
         void range_scan(const std::string& start_key, const std::string* end_key, abstract_push_op& apo) override{
@@ -463,16 +432,10 @@ namespace dbindex {
                 std::string value = std::get<1>(current);
                 const char* keyp = key.c_str();
                 if (!apo.invoke(keyp, key.length(), value)) {
-                    #ifdef _USE_GLOBAL_LOCK
-                    global_shared_lock.unlock(); 
-                    #endif
                     return;
                 }
                 pri_queue.pop();
             }
-            #ifdef _USE_GLOBAL_LOCK
-            global_shared_lock.unlock(); 
-            #endif
         }
 
         void reverse_range_scan(const std::string& start_key, const std::string* end_key, abstract_push_op& apo) override{
@@ -501,16 +464,10 @@ namespace dbindex {
                 std::string value = std::get<1>(current);
                 const char* keyp = key.c_str();
                 if (!apo.invoke(keyp, key.length(), value)) {
-                    #ifdef _USE_GLOBAL_LOCK
-                    global_shared_lock.unlock(); 
-                    #endif
                     return;
                 }
                 pri_queue.pop();
             }
-            #ifdef _USE_GLOBAL_LOCK
-            global_shared_lock.unlock(); 
-            #endif
         }
 
         std::uint8_t get_global_depth() {
@@ -533,14 +490,7 @@ namespace dbindex {
                     total_entry_count += directory[i]->entry_count;
                 }
             }
-            #ifdef _USE_GLOBAL_LOCK
-            global_shared_lock.unlock(); 
-            #endif
             return total_entry_count;
-        }
-
-        std::string to_string() override {
-            return "extendible_hash_table";
         }
     };
 }

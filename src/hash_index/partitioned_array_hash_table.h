@@ -41,12 +41,12 @@ namespace dbindex {
             return r;
         }
 
-		void split_prefix_key(const std::string& key, std::uint32_t& prefix_result, std::string& suffix_key) {
+		std::uint32_t calc_prefix_of_key(const std::string& key) {
 			if (prefix_bits >= key.size()*8)
-				std::cout << "Key: " << key << ", " << key.size() <<  std::endl;
+				// std::cout << "Key: " << key << ", " << key.size() <<  std::endl;
 			assert(prefix_bits < key.size()*8);
 			auto ukey = reinterpret_cast<const uint8_t*>(key.c_str());
-            prefix_result = 0;
+            std::uint32_t prefix_result = 0;
 
             // Head of prefix:
             const std::uint8_t head_blocks = prefix_bits/8;
@@ -77,9 +77,7 @@ namespace dbindex {
            		prefix_result >>= 8-tail_bits;
             	// std::cout << "post-tail prefix: " << prefix_result << std::endl; 
             }
-           	// Remainder of string.
-           	suffix_key = key.substr(head_blocks);
-           	suffix_key[0] = (char)(blocks[0] & create_bit_mask(7-tail_bits));
+            return prefix_result;
 		}
 
 		std::string generate_key_prefix(std::uint32_t prefix_int) {
@@ -92,33 +90,25 @@ namespace dbindex {
 		}
 
 		bool get(const std::string& key, std::string& value) override {
-			std::uint32_t prefix_result;
-			std::string suffix_key;
-				
-			split_prefix_key(key, prefix_result, suffix_key);
-			return hash_tables[prefix_result].get(suffix_key, value);
+			std::uint32_t prefix_result = calc_prefix_of_key(key);
+			return hash_tables[prefix_result].get(key, value);
 		}
 
 		void insert(const std::string& key, const std::string& new_value) override {
-			std::uint32_t prefix_result;
-			std::string suffix_key;
-			split_prefix_key(key, prefix_result, suffix_key);
+			std::uint32_t prefix_result = calc_prefix_of_key(key);
 			// std::cout << "Key: " << key << ", first char: " << key[0] << ", int of first char: " << (int)key[0] << ", prefix: " << prefix_result << ", suffix_key: " << suffix_key << std::endl;
-			hash_tables[prefix_result].insert(suffix_key, new_value);
+			hash_tables[prefix_result].insert(key, new_value);
 		}
 
 		void update(const std::string& key, const std::string& new_value) override {
-			std::uint32_t prefix_result;
-			std::string suffix_key;
-			split_prefix_key(key, prefix_result, suffix_key);
-			hash_tables[prefix_result].update(suffix_key, new_value);
+			std::uint32_t prefix_result = calc_prefix_of_key(key);
+			
+			hash_tables[prefix_result].update(key, new_value);
 		}
 
 		void remove(const std::string& key) override {
-			std::uint32_t prefix_result;
-			std::string suffix_key;
-			split_prefix_key(key, prefix_result, suffix_key);
-			hash_tables[prefix_result].remove(suffix_key);
+			std::uint32_t prefix_result = calc_prefix_of_key(key);
+			hash_tables[prefix_result].remove(key);
 		}
 
 		void range_scan(const std::string& start_key, const std::string* end_key, abstract_push_op& apo) override{
@@ -127,70 +117,158 @@ namespace dbindex {
 			// std::cout << "1" << std::endl;
 
 			std::uint32_t start_prefix_result;
-			std::string start_suffix_key;
 			// std::cout << "2" << std::endl;
 			if (start_key == "") {
 				start_prefix_result = 0;
-				start_suffix_key = "";
 			} else {
-				split_prefix_key(start_key, start_prefix_result, start_suffix_key);
+				start_prefix_result = calc_prefix_of_key(start_key);
 			}
 			// std::cout << "3" << std::endl;
-			partitioned_push_op<less_than_hash_entry> po{generate_key_prefix(start_prefix_result)};
+			partitioned_push_op<less_than_hash_entry> po{};
 			// std::cout << "start_prefix_result: " << start_prefix_result << std::endl;
 			// std::cout << "startkey: " << start_key << std::endl;
 			// std::cout << "start_prefix_result: " << start_prefix_result << std::endl;
 			// std::cout << "start_suffix_key: " << start_suffix_key << std::endl;
 			// std::cout << "4" << std::endl;
 			if (end_key) { // Closed-end scan
+				// std::cout << "Endkey: " << *end_key << std::endl;
+				// std::cout << "1" << std::endl;
 				// std::cout << "411" << std::endl;
-				std::uint32_t end_prefix_result;
-				std::string end_suffix_key;
-				split_prefix_key(*end_key, end_prefix_result, end_suffix_key);
+				std::uint32_t end_prefix_result = calc_prefix_of_key(*end_key);
 				// std::cout << "412" << std::endl;
 
-				const std::string* end_suffix_keyp = &end_suffix_key;
-
 				if (start_prefix_result == end_prefix_result) { // Only one partition
+					// std::cout << "11" << std::endl;
 					// std::cout << "Only bucket: " << start_prefix_result << std::endl;
 					// std::cout << "4131" << std::endl;
-					hash_tables[start_prefix_result].range_scan(start_suffix_key, end_suffix_keyp, po);
-					// std::cout << "4132" << std::endl;
+					hash_tables[start_prefix_result].range_scan(start_key, end_key, po);
+					if (!push_queue_op<less_than_hash_entry>(po.get(), apo)){
+						return;
+					}
 				} else { // Multiple partitions
+					// std::cout << "12" << std::endl;
 					// std::cout << "4141" << std::endl;
-					// std::cout << "spr: " << start_prefix_result << ", hta: " << hash_table_amount << std::endl;
-					hash_tables[start_prefix_result].range_scan(start_suffix_key, nullptr, po);
+					// std::cout << "spr: " << start_prefix_result << ", epr: " << end_prefix_result << ", hta: " << hash_table_amount << std::endl;
 					// std::cout << "First bucket: " << start_prefix_result << ", then buckets: ";
+					hash_tables[start_prefix_result].range_scan(start_key, nullptr, po);
+					if (!push_queue_op<less_than_hash_entry>(po.get(), apo)){
+						return;
+					}
+
 					// std::cout << "4142" << std::endl;
 					for (std::uint32_t i = start_prefix_result+1; i < end_prefix_result; i++) {
-						// std::cout << i << ", ";
-						po.set_prefix(generate_key_prefix(i));
+						// std::cout << "Bucket: " << i << std::endl;
 						hash_tables[i].range_scan("", nullptr, po);
+						if (!push_queue_op<less_than_hash_entry>(po.get(), apo)){
+							return;
+						}
 					}
 					// std::cout << "\nFinally bucket: " << end_prefix_result << std::endl;
 					// std::cout << "4143" << std::endl;
-					po.set_prefix(generate_key_prefix(end_prefix_result));
-					hash_tables[end_prefix_result].range_scan("", end_suffix_keyp, po);
+					hash_tables[end_prefix_result].range_scan("", end_key, po);
+					if (!push_queue_op<less_than_hash_entry>(po.get(), apo)){
+						return;
+					}
 					// std::cout << "4144" << std::endl;
 				}
 			} else { // Open-ended scan
+				// std::cout << "2" << std::endl;
 				// std::cout << "421" << std::endl;
 				// std::cout << "First bucket: " << start_prefix_result << ", then buckets: ";
-				hash_tables[start_prefix_result].range_scan(start_suffix_key, nullptr, po);
+				hash_tables[start_prefix_result].range_scan(start_key, nullptr, po);
+				if (!push_queue_op<less_than_hash_entry>(po.get(), apo)){
+					return;
+				}
 				// std::cout << "422" << std::endl;
 				for (std::uint32_t i = start_prefix_result+1; i < hash_table_amount; i++) {
 					// std::cout << i << ", ";
-					po.set_prefix(generate_key_prefix(i));
 					hash_tables[i].range_scan("", nullptr, po);
+					if (!push_queue_op<less_than_hash_entry>(po.get(), apo)){
+						return;
+					}
 				}
 				// std::cout << "424" << std::endl;
 			}
 
 			// std::cout << "5" << std::endl;
-			// push results
-			auto queue = po.get();
 			// std::cout << "6" << std::endl;
+			// std::cout << "10" << std::endl;
+		}
+		void reverse_range_scan(const std::string& start_key, const std::string* end_key, abstract_push_op& apo) override{
+			if (end_key) assert(*end_key > start_key);
+			
+			// std::cout << "1" << std::endl;
 
+			std::uint32_t start_prefix_result;
+			// std::cout << "2" << std::endl;
+			if (start_key == "") {
+				start_prefix_result = 0;
+			} else {
+				start_prefix_result = calc_prefix_of_key(start_key);
+			}
+			// std::cout << "3" << std::endl;
+			partitioned_push_op<greater_than_hash_entry> po{};
+			// std::cout << "start_prefix_result: " << start_prefix_result << std::endl;
+			// std::cout << "startkey: " << start_key << std::endl;
+			// std::cout << "start_prefix_result: " << start_prefix_result << std::endl;
+			// std::cout << "start_suffix_key: " << start_suffix_key << std::endl;
+			// std::cout << "4" << std::endl;
+			if (end_key) { // Closed-end scan
+				// std::cout << "endkey: " << *end_key << std::endl;
+				// std::cout << "411" << std::endl;
+				std::uint32_t end_prefix_result = calc_prefix_of_key(*end_key);
+				// std::cout << "412" << std::endl;
+
+				if (start_prefix_result == end_prefix_result) { // Only one partition
+					// std::cout << "Only bucket: " << start_prefix_result << std::endl;
+					// std::cout << "4131" << std::endl;
+					hash_tables[start_prefix_result].reverse_range_scan(start_key, end_key, po);
+					// std::cout << " ASDA" << po.get().size() << std::endl;
+					if (!push_queue_op<greater_than_hash_entry>(po.get(), apo))
+						return;
+				} else { // Multiple partitions
+					// std::cout << "4141" << std::endl;
+					// std::cout << "spr: " << start_prefix_result << ", hta: " << hash_table_amount << std::endl;
+
+					// std::cout << "\nFinal bucket: " << end_prefix_result << std::endl;
+					hash_tables[end_prefix_result].reverse_range_scan("", end_key, po);
+					if (!push_queue_op<greater_than_hash_entry>(po.get(), apo))
+						return;
+
+					// std::cout << "4142" << std::endl;
+					for (std::uint32_t i = end_prefix_result-1; i > start_prefix_result; i--) {
+						// std::cout << i << ", ";
+						hash_tables[i].reverse_range_scan("", nullptr, po);
+						if (!push_queue_op<greater_than_hash_entry>(po.get(), apo))
+							return;
+					}
+					// std::cout << "4143" << std::endl;
+					// std::cout << "First bucket: " << start_prefix_result << ", then buckets: ";
+					hash_tables[start_prefix_result].reverse_range_scan(start_key, nullptr, po);
+					if (!push_queue_op<greater_than_hash_entry>(po.get(), apo))
+						return;
+					// std::cout << "4144" << std::endl;
+				}
+			} else { // Open-ended scan
+				// std::cout << "421" << std::endl;
+				// std::cout << "422" << std::endl;
+				for (std::uint32_t i = hash_table_amount-1; i > start_prefix_result; i--) {
+					// std::cout << i << ", ";
+					hash_tables[i].reverse_range_scan("", nullptr, po);
+					if (!push_queue_op<greater_than_hash_entry>(po.get(), apo))
+						return;
+				}
+				
+				// std::cout << "First bucket: " << start_prefix_result << ", then buckets: ";
+				hash_tables[start_prefix_result].reverse_range_scan(start_key, nullptr, po);
+				if (!push_queue_op<greater_than_hash_entry>(po.get(), apo))
+					return;
+				// std::cout << "424" << std::endl;
+			}
+		}
+
+		template <typename cmp>
+		bool push_queue_op(std::priority_queue<hash_entry, std::vector<hash_entry>, cmp> queue, abstract_push_op& apo) {
 			while (!queue.empty())
 			{
 				hash_entry entry = queue.top();
@@ -200,94 +278,12 @@ namespace dbindex {
 				// std::cout << "8" << std::endl;
 				const char* keyp = key.c_str();
 				if (!apo.invoke(keyp, key.size(), value)) {
-					return;
+					return false;
 				}
 				// std::cout << "9" << std::endl;
 				queue.pop();
 			}
-			// std::cout << "10" << std::endl;
-		}
-
-		void reverse_range_scan(const std::string& start_key, const std::string* end_key, abstract_push_op& apo) override{
-			if (end_key) assert(*end_key > start_key);
-
-			// std::cout << "1" << std::endl;
-
-			std::uint32_t start_prefix_result;
-			std::string start_suffix_key;
-			// std::cout << "2" << std::endl;
-			split_prefix_key(start_key, start_prefix_result, start_suffix_key);
-			// std::cout << "3" << std::endl;
-			partitioned_push_op<greater_than_hash_entry> po{generate_key_prefix(start_prefix_result)};
-			// std::cout << "start_prefix_result: " << start_prefix_result << std::endl;
-			// std::cout << "startkey: " << start_key << std::endl;
-			// std::cout << "start_prefix_result: " << start_prefix_result << std::endl;
-			// std::cout << "start_suffix_key: " << start_suffix_key << std::endl;
-			// std::cout << "4" << std::endl;
-			if (end_key) { // Closed-end scan
-				// std::cout << "411" << std::endl;
-				std::uint32_t end_prefix_result;
-				std::string end_suffix_key;
-				split_prefix_key(*end_key, end_prefix_result, end_suffix_key);
-				// std::cout << "412" << std::endl;
-
-				const std::string* end_suffix_keyp = &end_suffix_key;
-
-				if (start_prefix_result == end_prefix_result) { // Only one partition
-					// std::cout << "Only bucket: " << start_prefix_result << std::endl;
-					// std::cout << "4131" << std::endl;
-					hash_tables[start_prefix_result].reverse_range_scan(start_suffix_key, end_suffix_keyp, po);
-					// std::cout << "4132" << std::endl;
-				} else { // Multiple partitions
-					// std::cout << "4141" << std::endl;
-					// std::cout << "spr: " << start_prefix_result << ", hta: " << hash_table_amount << std::endl;
-					hash_tables[start_prefix_result].reverse_range_scan(start_suffix_key, nullptr, po);
-					// std::cout << "First bucket: " << start_prefix_result << ", then buckets: ";
-					// std::cout << "4142" << std::endl;
-					for (std::uint32_t i = start_prefix_result+1; i < end_prefix_result; i++) {
-						// std::cout << i << ", ";
-						po.set_prefix(generate_key_prefix(i));
-						hash_tables[i].reverse_range_scan("", nullptr, po);
-					}
-					// std::cout << "\nFinally bucket: " << end_prefix_result << std::endl;
-					// std::cout << "4143" << std::endl;
-					po.set_prefix(generate_key_prefix(end_prefix_result));
-					hash_tables[end_prefix_result].reverse_range_scan("", end_suffix_keyp, po);
-					// std::cout << "4144" << std::endl;
-				}
-			} else { // Open-ended scan
-				// std::cout << "421" << std::endl;
-				// std::cout << "First bucket: " << start_prefix_result << ", then buckets: ";
-				hash_tables[start_prefix_result].reverse_range_scan(start_suffix_key, nullptr, po);
-				// std::cout << "422" << std::endl;
-				for (std::uint32_t i = start_prefix_result+1; i < hash_table_amount; i++) {
-					// std::cout << i << ", ";
-					po.set_prefix(generate_key_prefix(i));
-					hash_tables[i].reverse_range_scan("", nullptr, po);
-				}
-				// std::cout << "424" << std::endl;
-			}
-
-			// std::cout << "5" << std::endl;
-			// push results
-			auto queue = po.get();
-			// std::cout << "6" << std::endl;
-
-			while (!queue.empty())
-			{
-				hash_entry entry = queue.top();
-				std::string key   = std::get<0>(entry);
-				std::string value = std::get<1>(entry);
-				// std::cout << "Value: " << key << std::endl;
-				// std::cout << "8" << std::endl;
-				const char* keyp = key.c_str();
-				if (!apo.invoke(keyp, key.size(), value)) {
-					return;
-				}
-				// std::cout << "9" << std::endl;
-				queue.pop();
-			}
-			// std::cout << "10" << std::endl;
+			return true;
 		}
 
 		std::uint32_t get_directory_size() {
@@ -301,11 +297,6 @@ namespace dbindex {
 			}
 			return total_size;
 		}
-
-        std::string to_string() override {
-            return "partitioned_array_hash_table";
-        }
-
 	};
 }
 

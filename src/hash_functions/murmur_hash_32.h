@@ -18,8 +18,7 @@ namespace dbindex {
         value_t seed {
             static_cast<value_t>(std::chrono::high_resolution_clock::now().time_since_epoch().count()) };
 
-        inline std::uint32_t rotl32(const std::uint32_t& x,
-                const std::uint8_t& r) {
+        inline std::uint32_t rotl32(const std::uint32_t& x, const std::uint8_t& r) {
             return (x << r) | (x >> (32 - r));
         }
 
