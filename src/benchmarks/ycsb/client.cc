@@ -91,6 +91,7 @@ void do_data_gen_timed(workload& wl, std::uint32_t operation_count, utils::timin
 }
 
 void do_hash_func_timed(dbindex::abstract_hash<std::uint32_t>& hash, std::vector<std::string>& keys, std::uint32_t operation_count, utils::timing_obj& timing) { 
+	std::cout << "Inside" << std::endl;
 	timing.set_start(std::chrono::high_resolution_clock::now());
 	for (std::uint32_t i = 0; i < operation_count; i++) {
 	    hash.get_hash(keys[i]);
@@ -242,16 +243,17 @@ std::uint32_t client::run_hash_func(dbindex::abstract_hash<std::uint32_t>& hash,
 	workload wls[thread_count];
 
 	std::vector<std::string> keys[thread_count];
-
+	std::cout << "before keys" << std::endl;
 	// Insertions 	- Initialization of the index
 	for(std::uint32_t t = 0; t < thread_count; t++) {
+		wls[t].init(wl_p);
 		for(std::uint32_t i = 0; i < operation_count; i++) {
-			keys[t][i] = wls[t].next_transaction_key();
+			keys[t].push_back(wls[t].next_transaction_key());
 		}
 	}
-		
+	std::cout << "after keys" << std::endl;
+	
 	for(std::uint32_t t = 0; t < thread_count; t++) {
-		wls[t].init(wl_p);
 		threads[t] = std::thread(do_hash_func_timed, std::ref(hash), std::ref(keys[t]), operation_count, std::ref(timings[t]));
 		utils::stick_thread_to_core(threads[t].native_handle(), (t*2)%32 + ((t*2)/32));
 	}
