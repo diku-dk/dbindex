@@ -171,7 +171,7 @@ void test_workload(std::uint8_t thread_count_max, std::string workload_string, s
 			ycsb::workload wl;
 			wl.init(workload);
 			for(std::uint32_t i = 0; i < ops; i++) {
-				keys[t].push_back(wl.next_transaction_key());
+				keys[t][i] = wl.next_transaction_key();
 			}
 		}
 
@@ -365,7 +365,7 @@ void test_dir_size(std::uint8_t thread_count, ycsb::workload_properties workload
 	std::cout << "Using directory_depth = " << (int)directory_depth << std::endl;
 
 		// Running experiments 
-	std::uint32_t iterations = 25;
+	std::uint32_t iterations = 10;
 	std::uint32_t throughputs[iterations]; 
 	std::cout << "Running benchmark with " << workload_to_string(workload) << std::endl;
 
@@ -406,10 +406,10 @@ void test_dir_size(std::uint8_t thread_count, ycsb::workload_properties workload
 	std::cout << "Data written" << std::endl;
 	out_file.flush();
 
-	test_dir_size<directory_depth-1>(thread_count, workload, hash_func_string, hash_index_string, file_suffix, out_file);
+	test_dir_size<directory_depth+1>(thread_count, workload, hash_func_string, hash_index_string, file_suffix, out_file);
 }
 template <>
-void test_dir_size<0>(std::uint8_t thread_count, ycsb::workload_properties workload, std::string hash_func_string, std::string hash_index_string, std::string file_suffix, std::ofstream& out_file) {
+void test_dir_size<21>(std::uint8_t thread_count, ycsb::workload_properties workload, std::string hash_func_string, std::string hash_index_string, std::string file_suffix, std::ofstream& out_file) {
 	// Ending the recursion
 }
 template <std::int8_t initial_global_depth>
@@ -422,7 +422,7 @@ void test_initial_global_depth(std::uint8_t thread_count, ycsb::workload_propert
 	std::cout << "Using initial_global_depth = " << (int)initial_global_depth << std::endl;
 
 		// Running experiments 
-	std::uint32_t iterations = 25;
+	std::uint32_t iterations = 10;
 	std::uint32_t throughputs[iterations]; 
 
 	std::cout << "Running benchmark with " << workload_to_string(workload) << std::endl;
@@ -465,10 +465,10 @@ void test_initial_global_depth(std::uint8_t thread_count, ycsb::workload_propert
 	std::cout << "Data written" << std::endl;
 	out_file.flush();
 	
-	test_initial_global_depth<initial_global_depth-1>(thread_count, workload, hash_func_string, file_suffix, out_file);
+	test_initial_global_depth<initial_global_depth+1>(thread_count, workload, hash_func_string, file_suffix, out_file);
 }
 template <>
-void test_initial_global_depth<0>(std::uint8_t thread_count, ycsb::workload_properties workload, std::string hash_func_string, std::string file_suffix, std::ofstream& out_file) {
+void test_initial_global_depth<21>(std::uint8_t thread_count, ycsb::workload_properties workload, std::string hash_func_string, std::string file_suffix, std::ofstream& out_file) {
 	// Ending the recursion
 }
 
@@ -483,7 +483,7 @@ void test_prefix_bits(std::uint8_t thread_count, ycsb::workload_properties workl
 
 
 		// Running experiments 
-	std::uint32_t iterations = 25;
+	std::uint32_t iterations = 10;
 	std::uint32_t throughputs[iterations]; 
 
 	std::cout << "Running benchmark with " << workload_to_string(workload) << std::endl;
@@ -525,10 +525,10 @@ void test_prefix_bits(std::uint8_t thread_count, ycsb::workload_properties workl
 	std::cout << "Data written" << std::endl;
 	out_file.flush();
 	
-	test_prefix_bits<prefix_bits-1>(thread_count, workload, hash_func_string, file_suffix, out_file);
+	test_prefix_bits<prefix_bits+1>(thread_count, workload, hash_func_string, file_suffix, out_file);
 }
 template <>
-void test_prefix_bits<0>(std::uint8_t thread_count, ycsb::workload_properties workload, std::string hash_func_string, std::string file_suffix, std::ofstream& out_file) {
+void test_prefix_bits<32>(std::uint8_t thread_count, ycsb::workload_properties workload, std::string hash_func_string, std::string file_suffix, std::ofstream& out_file) {
 	// Ending the recursion
 }
 template <std::uint8_t max_key_len>
@@ -548,8 +548,8 @@ void test_max_key_len(std::uint8_t thread_count, ycsb::workload_properties workl
 	client.run_build_records(1);
 	std::cout << "Records built" << std::endl;
 
-		// Running experiments 
-	std::uint32_t iterations = 25;
+	// Running experiments 
+	std::uint32_t iterations = 10;
 	std::uint32_t throughputs[iterations]; 
 
 	std::cout << "Running benchmark with " << workload_to_string(workload) << std::endl;
@@ -583,10 +583,10 @@ void test_max_key_len(std::uint8_t thread_count, ycsb::workload_properties workl
 	
 	delete hash_index;
 	delete hash;
-	test_max_key_len<directory_depth-1>(thread_count, workload, hash_func_string, hash_index_string, file_suffix, out_file);
+	test_max_key_len<directory_depth+1>(thread_count, workload, hash_func_string, hash_index_string, file_suffix, out_file);
 }
 template <>
-void test_max_key_len<0>(std::uint8_t thread_count, ycsb::workload_properties workload, std::string hash_func_string, std::string hash_index_string, std::string file_suffix, std::ofstream& out_file) {
+void test_max_key_len<65>(std::uint8_t thread_count, ycsb::workload_properties workload, std::string hash_func_string, std::string hash_index_string, std::string file_suffix, std::ofstream& out_file) {
 	// Ending the recursion
 }
 
@@ -643,7 +643,7 @@ int main(int argc, char *argv[]) {
 	
 	if (workload_string.length() > dir_size_string.length() && workload_string.substr(workload_string.length()-dir_size_string.length())==dir_size_string) {
 		assert(hash_index_num == 0 || hash_index_num == 2);
-		constexpr std::uint8_t max_directory_depth = 20;
+		// constexpr std::uint8_t max_directory_depth = 20;
 		workload_string = workload_string.substr(0, workload_string.length()-dir_size_string.length());
 		ycsb::workload_properties workload = parse_workload_string(workload_string);
 
@@ -658,7 +658,7 @@ int main(int argc, char *argv[]) {
 		}
 		std::cout << "File opened" << std::endl;
 
-		test_dir_size<max_directory_depth>(thread_count_max, workload, hash_func_string, hash_index_string, file_suffix, out_file);
+		test_dir_size<2>(thread_count_max, workload, hash_func_string, hash_index_string, file_suffix, out_file);
 	
 		out_file.flush();
 		if (out_file.fail())
@@ -666,7 +666,7 @@ int main(int argc, char *argv[]) {
 		out_file.close();
 	} else if (workload_string.length() > global_depth_string.length() && workload_string.substr(workload_string.length()-global_depth_string.length())==global_depth_string) {
 		assert(hash_index_num == 1);
-		constexpr std::uint8_t max_initial_global_depth = 20;
+		// constexpr std::uint8_t max_initial_global_depth = 20;
 		workload_string = workload_string.substr(0, workload_string.length()-global_depth_string.length());
 		ycsb::workload_properties workload = parse_workload_string(workload_string);
 
@@ -681,7 +681,7 @@ int main(int argc, char *argv[]) {
 		}
 		std::cout << "File opened" << std::endl;
 
-		test_initial_global_depth<max_initial_global_depth>(thread_count_max, workload, hash_func_string, file_suffix, out_file);
+		test_initial_global_depth<1>(thread_count_max, workload, hash_func_string, file_suffix, out_file);
 	
 		out_file.flush();
 		if (out_file.fail())
@@ -689,7 +689,7 @@ int main(int argc, char *argv[]) {
 		out_file.close();
 	} else if (workload_string.length() > prefix_bits_string.length() && workload_string.substr(workload_string.length()-prefix_bits_string.length())==prefix_bits_string) {
 		assert(hash_index_num == 2);
-		constexpr std::uint8_t max_prefix_bits = 31;
+		// constexpr std::uint8_t max_prefix_bits = 31;
 		workload_string = workload_string.substr(0, workload_string.length()-prefix_bits_string.length());
 		ycsb::workload_properties workload = parse_workload_string(workload_string);
 
@@ -704,7 +704,7 @@ int main(int argc, char *argv[]) {
 		}
 		std::cout << "File opened" << std::endl;
 
-		test_prefix_bits<max_prefix_bits>(thread_count_max, workload, hash_func_string, file_suffix, out_file);
+		test_prefix_bits<2>(thread_count_max, workload, hash_func_string, file_suffix, out_file);
 	
 		out_file.flush();
 		if (out_file.fail())
@@ -712,7 +712,7 @@ int main(int argc, char *argv[]) {
 		out_file.close();
 	
 	} else if (workload_string.length() > max_key_len_string.length() && workload_string.substr(workload_string.length()-max_key_len_string.length())==max_key_len_string) {
-		constexpr std::uint8_t max_key_len = 64;
+		// constexpr std::uint8_t max_key_len = 64;
 		workload_string = workload_string.substr(0, workload_string.length()-max_key_len_string.length());
 		ycsb::workload_properties workload = parse_workload_string(workload_string);
 
@@ -727,7 +727,7 @@ int main(int argc, char *argv[]) {
 		}
 		std::cout << "File opened" << std::endl;
 
-		test_max_key_len<max_key_len>(thread_count_max, workload, hash_func_string, hash_index_string, file_suffix, out_file);
+		test_max_key_len<5>(thread_count_max, workload, hash_func_string, hash_index_string, file_suffix, out_file);
 	
 		out_file.flush();
 		if (out_file.fail())

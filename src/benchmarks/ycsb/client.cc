@@ -91,7 +91,6 @@ void do_data_gen_timed(workload& wl, std::uint32_t operation_count, utils::timin
 }
 
 void do_hash_func_timed(dbindex::abstract_hash<std::uint32_t>& hash, std::vector<std::string>& keys, std::uint32_t operation_count, utils::timing_obj& timing) { 
-	std::cout << "Inside" << std::endl;
 	timing.set_start(std::chrono::high_resolution_clock::now());
 	for (std::uint32_t i = 0; i < operation_count; i++) {
 	    hash.get_hash(keys[i]);
