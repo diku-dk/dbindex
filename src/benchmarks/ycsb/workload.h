@@ -55,13 +55,13 @@ class workload {
 
     std::uint32_t rand_char_seed;
 
-    abstract_generator<hash_value_t>  *value_len_generator;
-    abstract_generator<hash_value_t>  *key_generator;
+    abstract_generator<hash_value_t>  *value_len_generator;       // Uniform(1, max_value_len)
+    abstract_generator<hash_value_t>  *key_generator;             // Counter generator
 
-    discrete_generator<operation_type> operation_selector;
-    abstract_generator<hash_value_t>  *key_selector;
-    abstract_generator<hash_value_t>  *scan_len_selector;
-    counter_generator<hash_value_t>    insert_sequence_generator;
+    discrete_generator<operation_type> operation_selector;        // Discrete generator
+    abstract_generator<hash_value_t>  *key_selector;              // Uniform/zipfian/latest generator
+    abstract_generator<hash_value_t>  *scan_len_selector;         // Uniform/zipfian generator 
+    counter_generator<hash_value_t>    insert_sequence_generator; // Counter generator
 
     limit_op limit_push_op;
 
@@ -73,7 +73,16 @@ class workload {
 };
 
 inline std::string workload::next_sequence_key() {
-    return std::to_string(key_generator->next());
+    #ifdef _TEST_PREFIX_BITS
+        value = "";
+        // Ensure prefix bits in front.
+        for (hash_value_t c = 0; c < 4; c++) {
+            value += (rand_r(&rand_char_seed) % 255) + 1;
+        }
+        return value + std::to_string(key_generator->next());
+    #else
+        return std::to_string(key_generator->next());
+    #endif
 }
 
 inline std::string workload::next_transaction_key() {
@@ -81,23 +90,25 @@ inline std::string workload::next_transaction_key() {
     do {
         key = key_selector->next();
     } while (key > insert_sequence_generator.last());
-    return std::to_string(key);
+
+    #ifdef _TEST_PREFIX_BITS
+        value = "";
+        // Ensure prefix bits in front.
+        for (hash_value_t c = 0; c < 4; c++) {
+            value += (rand_r(&rand_char_seed) % 255) + 1;
+        }
+        return value + std::to_string(key);
+    #else
+        return std::to_string(key);
+    #endif
 }
 
 
 inline void workload::do_insert(dbindex::abstract_index& hash_index) {
-    // std::cout << "start" << std::endl;
     std::string key = next_sequence_key();
-    // std::cout << "key found" << std::endl;
-    // std::cout << "Key: " << key << std::endl;
 
-
-    // std::cout << "building value" << std::endl;
     build_value(value);
-    // std::cout << "value built" << std::endl;
-    // std::cout << "Value: " << value << std::endl;
     hash_index.insert(key, value);
-    // std::cout << "inserted" << std::endl;
 }
 
 

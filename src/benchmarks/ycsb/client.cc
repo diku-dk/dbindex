@@ -1,4 +1,5 @@
 #include "../../util/thread_util.h"
+#include "../../macros.h"
 #include "../../abstract_index.h"
 #include "workload.h"
 #include "client.h"

@@ -7,4 +7,6 @@
 #define _USE_LOCAL_LOCKS
 #define _USE_LOCAL_INSERT_LOCKS
 
+// #define _TEST_PREFIX_BITS
+
 #endif /* SRC_MACROS_H_ */
