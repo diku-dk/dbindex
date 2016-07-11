@@ -12,6 +12,7 @@
 #include "../abstract_index.h"
 #include "../macros.h"
 #include "../push_ops.h"
+#include "../util/lock_util.h"
 
 typedef std::uint32_t hash_value_t;
 
@@ -30,7 +31,11 @@ namespace dbindex {
             std::vector<std::string> keys;
             std::vector<std::string> values;
             #ifdef _USE_LOCAL_LOCKS
-            boost::shared_mutex local_mutex; 
+                #ifdef _USE_SPINLOCK
+                    utils::spinlock local_lock;
+                #else
+                    boost::shared_mutex local_mutex; 
+                #endif
             #endif
 
             hash_bucket(std::uint8_t _local_depth, std::uint8_t _bucket_entries, const std::uint32_t _original_index) : local_depth(_local_depth), original_index(_original_index){
@@ -73,7 +78,11 @@ namespace dbindex {
         std::vector<hash_bucket*> directory{directory_size()};
 
         #ifdef _USE_GLOBAL_LOCK
-        boost::shared_mutex global_mutex; 
+            #ifdef _USE_SPINLOCK
+                utils::spinlock global_lock;
+            #else
+                boost::shared_mutex global_mutex; 
+            #endif
         #endif
 
         std::uint32_t create_bit_mask(std::uint32_t b)
@@ -168,28 +177,48 @@ namespace dbindex {
 
         void insert_internal_shared(const std::string& key, const std::string& new_value) {
             #ifdef _USE_GLOBAL_LOCK
-            boost::shared_lock<boost::shared_mutex> global_shared_lock(global_mutex); 
+                #ifdef _USE_SPINLOCK
+                    { // Start global lockguard scope
+                    boost::lock_guard<utils::spinlock> global_lock_guard(global_lock);
+                #else
+                    boost::shared_lock<boost::shared_mutex> global_shared_lock(global_mutex); 
+                #endif
             #endif
             hash_value_t hash_value = hash.get_hash(key);
             // std::cout << "Key: " << key << ", hash_value: " <<  hash_value << std::endl;
             std::uint32_t bucket_number = directory[hash_value & create_bit_mask(global_depth-1)]->original_index;
             // std::cout << "A: " << bucket_number << ", " << directory_size() << std::endl;
+
             #ifdef _USE_LOCAL_LOCKS
-            boost::unique_lock<boost::shared_mutex> local_exclusive_lock(directory[bucket_number]->local_mutex); 
+                #ifdef _USE_SPINLOCK
+                    { // Start local lockguard scope
+                    boost::lock_guard<utils::spinlock> local_lock_guard(directory[bucket_number]->local_lock);
+                #else
+                    boost::unique_lock<boost::shared_mutex> local_exclusive_lock(directory[bucket_number]->local_mutex); 
+                #endif
             #endif
+
             if(std::find(directory[bucket_number]->keys.begin(), directory[bucket_number]->keys.end(), key) != directory[bucket_number]->keys.end()) { // Key already present.
                 return;
             }
             // std::cout << "B" << std::endl;
             while (directory[hash_value & create_bit_mask(global_depth-1)]->original_index != bucket_number) { // Ensuring correct bucket number 
                 #ifdef _USE_LOCAL_LOCKS
-                local_exclusive_lock.unlock(); 
+                    #ifdef _USE_SPINLOCK
+                        local_lock_guard.~lock_guard<utils::spinlock>(); // [?!]
+                    #else
+                        local_exclusive_lock.unlock(); 
+                    #endif
                 #endif
                 // std::cout << "B1" << std::endl;
                 bucket_number = directory[hash_value & create_bit_mask(global_depth-1)]->original_index;
                 // std::cout << "B2" << std::endl;
                 #ifdef _USE_LOCAL_LOCKS
-                local_exclusive_lock = boost::unique_lock<boost::shared_mutex>(directory[bucket_number]->local_mutex); 
+                    #ifdef _USE_SPINLOCK
+                        boost::lock_guard<utils::spinlock> local_lock_guard(directory[bucket_number]->local_lock);
+                    #else
+                        local_exclusive_lock = boost::unique_lock<boost::shared_mutex>(directory[bucket_number]->local_mutex); 
+                    #endif
                 #endif
                 // std::cout << "B3" << std::endl;
 
@@ -221,17 +250,31 @@ namespace dbindex {
             }
             // std::cout << "F" << std::endl;
             #ifdef _USE_LOCAL_LOCKS
-            local_exclusive_lock.unlock(); 
+                #ifdef _USE_SPINLOCK
+                    } // end local lockguard scope
+                    // local_lock_guard.unlock();
+                #else
+                    local_exclusive_lock.unlock(); 
+                #endif
             #endif
             #ifdef _USE_GLOBAL_LOCK
-            global_shared_lock.unlock(); 
+                #ifdef _USE_SPINLOCK
+                    } // end global lockguard scope
+                    // global_lock_guard.unlock();
+                #else
+                    global_shared_lock.unlock(); 
+                #endif
             #endif
             insert_internal_exclusive(key, new_value);
         }
         void insert_internal_exclusive(const std::string& key, const std::string& new_value) {
             // std::cout << "EXCL" << std::endl;
             #ifdef _USE_GLOBAL_LOCK
-            boost::unique_lock<boost::shared_mutex> global_exclusive_lock(global_mutex); 
+                #ifdef _USE_SPINLOCK
+                    boost::lock_guard<utils::spinlock> global_lock_guard(global_lock);
+                #else
+                    boost::unique_lock<boost::shared_mutex> global_exclusive_lock(global_mutex); 
+                #endif
             #endif
 
             // Search for free slot
@@ -348,13 +391,21 @@ namespace dbindex {
             
             // Take global lock shared; 
             #ifdef _USE_GLOBAL_LOCK
-            boost::shared_lock<boost::shared_mutex> global_shared_lock(global_mutex); 
+                #ifdef _USE_SPINLOCK
+                    boost::lock_guard<utils::spinlock> global_lock_guard(global_lock);
+                #else
+                    boost::shared_lock<boost::shared_mutex> global_shared_lock(global_mutex); 
+                #endif
             #endif
             std::uint32_t bucket_number = hash_value & (directory_size()-1);
 
             // Take local lock shared; 
             #ifdef _USE_LOCAL_LOCKS
-            boost::shared_lock<boost::shared_mutex> local_shared_lock(directory[bucket_number]->local_mutex); 
+                #ifdef _USE_SPINLOCK
+                    boost::lock_guard<utils::spinlock> local_lock_guard(directory[bucket_number]->local_lock);
+                #else
+                    boost::shared_lock<boost::shared_mutex> local_shared_lock(directory[bucket_number]->local_mutex); 
+                #endif
             #endif
             for (uint8_t i = 0; i < bucket_entries; i++) {
                 if (directory[bucket_number]->keys[i] == key) {
@@ -369,17 +420,24 @@ namespace dbindex {
             insert_internal_shared(key, new_value);
         }
         
-        // Returns previous value, if found, -1 otherwise
         void update(const std::string& key, const std::string& new_value) override {
             hash_value_t hash_value = hash.get_hash(key);
 
             #ifdef _USE_GLOBAL_LOCK
-            boost::shared_lock<boost::shared_mutex> global_shared_lock(global_mutex); 
+                #ifdef _USE_SPINLOCK
+                    boost::lock_guard<utils::spinlock> global_lock_guard(global_lock);
+                #else
+                    boost::shared_lock<boost::shared_mutex> global_shared_lock(global_mutex); 
+                #endif
             #endif
             std::uint32_t bucket_number = hash_value & (directory_size()-1);
             
             #ifdef _USE_LOCAL_LOCKS
-            boost::unique_lock<boost::shared_mutex> local_exclusive_lock(directory[bucket_number]->local_mutex); 
+                #ifdef _USE_SPINLOCK
+                    boost::lock_guard<utils::spinlock> local_lock_guard(directory[bucket_number]->local_lock);
+                #else
+                    boost::unique_lock<boost::shared_mutex> local_exclusive_lock(directory[bucket_number]->local_mutex); 
+                #endif
             #endif
             for (uint8_t i = 0; i < bucket_entries; i++) {
                 if (directory[bucket_number]->keys[i] == key) {
@@ -392,11 +450,19 @@ namespace dbindex {
         void remove(const std::string& key) override {
             hash_value_t hash_value = hash.get_hash(key);
             #ifdef _USE_GLOBAL_LOCK
-            boost::shared_lock<boost::shared_mutex> global_shared_lock(global_mutex); 
+                #ifdef _USE_SPINLOCK
+                    boost::lock_guard<utils::spinlock> global_lock_guard(global_lock);
+                #else
+                    boost::shared_lock<boost::shared_mutex> global_shared_lock(global_mutex); 
+                #endif
             #endif
             std::uint32_t bucket_number = hash_value & (directory_size()-1);
             #ifdef _USE_LOCAL_LOCKS
-            boost::unique_lock<boost::shared_mutex> local_exclusive_lock(directory[bucket_number]->local_mutex); 
+                #ifdef _USE_SPINLOCK
+                    boost::lock_guard<utils::spinlock> local_lock_guard(directory[bucket_number]->local_lock);
+                #else
+                    boost::unique_lock<boost::shared_mutex> local_exclusive_lock(directory[bucket_number]->local_mutex); 
+                #endif
             #endif
             for (uint8_t i = 0; i < directory[bucket_number]->entry_count; i++) {
                 if (directory[bucket_number]->keys[i] == key) { // Entry to be updated found
@@ -416,7 +482,11 @@ namespace dbindex {
 
             // FULL SCAN
             #ifdef _USE_GLOBAL_LOCK
-            boost::shared_lock<boost::shared_mutex> global_shared_lock(global_mutex); 
+                #ifdef _USE_SPINLOCK
+                    boost::lock_guard<utils::spinlock> global_lock_guard(global_lock);
+                #else
+                    boost::shared_lock<boost::shared_mutex> global_shared_lock(global_mutex); 
+                #endif
             #endif
             for (std::uint32_t i = 0; i < directory_size(); i++) {          
                 for (std::uint8_t j = 0; j < directory[i]->entry_count; j++) {
@@ -448,7 +518,11 @@ namespace dbindex {
 
             // FULL SCAN
             #ifdef _USE_GLOBAL_LOCK
-            boost::shared_lock<boost::shared_mutex> global_shared_lock(global_mutex); 
+                #ifdef _USE_SPINLOCK
+                    boost::lock_guard<utils::spinlock> global_lock_guard(global_lock);
+                #else
+                    boost::shared_lock<boost::shared_mutex> global_shared_lock(global_mutex); 
+                #endif
             #endif
             for (std::uint32_t i = 0; i < directory_size(); i++) {          
                 for (std::uint8_t j = 0; j < directory[i]->entry_count; j++) {
@@ -482,7 +556,11 @@ namespace dbindex {
         }
         size_t size() {
             #ifdef _USE_GLOBAL_LOCK
-            boost::shared_lock<boost::shared_mutex> global_shared_lock(global_mutex); 
+                #ifdef _USE_SPINLOCK
+                    boost::lock_guard<utils::spinlock> global_lock_guard(global_lock);
+                #else
+                    boost::shared_lock<boost::shared_mutex> global_shared_lock(global_mutex); 
+                #endif
             #endif
             size_t total_entry_count = 0;
             for (std::uint32_t i = 0; i < directory_size(); i++) {
