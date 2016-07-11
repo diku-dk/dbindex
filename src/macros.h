@@ -5,7 +5,8 @@
 
 #define _USE_GLOBAL_LOCK
 #define _USE_LOCAL_LOCKS
-#define _USE_LOCAL_INSERT_LOCKS
+
+#define _USE_SPINLOCK
 
 // #define _TEST_PREFIX_BITS
 

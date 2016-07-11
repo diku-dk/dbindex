@@ -49,7 +49,13 @@ namespace dbindex {
 		};
 
 		std::vector<hash_bucket*> directory{directory_size};
-		std::vector<boost::shared_mutex> bucket_mutexes{directory_size};
+		#ifdef _USE_LOCAL_LOCKS
+			#ifdef _USE_SPINLOCK
+				std::vector<utils::spinlock> bucket_locks{directory_size};
+			#else
+				std::vector<boost::shared_mutex> bucket_mutexes{directory_size};
+			#endif
+		#endif
 
 	public:
 		array_hash_table(abstract_hash<hash_value_t>& _hash) : hash(_hash) {
@@ -104,23 +110,21 @@ namespace dbindex {
 			hash_value_t hash_value = hash.get_hash(key);
 			std::uint32_t bucket_number = hash_value & (directory_size-1);
 
-			#if defined(_USE_LOCAL_LOCKS) || defined(_USE_LOCAL_INSERT_LOCKS)
-			boost::shared_lock<boost::shared_mutex> local_shared_lock(bucket_mutexes[bucket_number]);
+			#ifdef _USE_LOCAL_LOCKS
+				#ifdef _USE_SPINLOCK
+					boost::lock_guard<utils::spinlock> local_lock_guard(bucket_locks[bucket_number]);
+				#else
+					boost::shared_lock<boost::shared_mutex> local_shared_lock(bucket_mutexes[bucket_number]);
+				#endif
 			#endif
 			if (directory[bucket_number]) {
 				for (uint32_t i = 0; i < directory[bucket_number]->keys.size(); i++) {
 					if (strcmp(directory[bucket_number]->keys[i].c_str(), key.c_str()) == 0) {
 						value = directory[bucket_number]->values[i];
-						#ifdef _USE_LOCAL_LOCKS
-						local_shared_lock.unlock();
-						#endif
 						return true;
 					}
 				}
 			}
-			#if defined(_USE_LOCAL_LOCKS) || defined(_USE_LOCAL_INSERT_LOCKS)
-			local_shared_lock.unlock();
-			#endif
 			return false;
 		}
 
@@ -129,7 +133,11 @@ namespace dbindex {
 			std::uint32_t bucket_number = hash_value & (directory_size-1);
 
 			#ifdef _USE_LOCAL_LOCKS
-			boost::unique_lock<boost::shared_mutex> local_exclusive_lock(bucket_mutexes[bucket_number]);
+				#ifdef _USE_SPINLOCK
+					boost::lock_guard<utils::spinlock> local_lock_guard(bucket_locks[bucket_number]);
+				#else
+					boost::unique_lock<boost::shared_mutex> local_exclusive_lock(bucket_mutexes[bucket_number]);
+				#endif
 			#endif
 			if (directory[bucket_number]) {
 				directory[bucket_number]->insert_next(key, new_value);
@@ -137,10 +145,6 @@ namespace dbindex {
 				hash_bucket* bucket = new hash_bucket(key, new_value);
 				directory[bucket_number] = bucket;
 			}
-			#ifdef _USE_LOCAL_LOCKS
-			local_exclusive_lock.unlock();
-			#endif
-
 		}
 
 		void update(const std::string& key, const std::string& new_value) override {
@@ -148,7 +152,11 @@ namespace dbindex {
 			std::uint32_t bucket_number = hash_value & (directory_size-1);
 			
 			#ifdef _USE_LOCAL_LOCKS
-			boost::unique_lock<boost::shared_mutex> local_exclusive_lock(bucket_mutexes[bucket_number]);
+				#ifdef _USE_SPINLOCK
+					boost::lock_guard<utils::spinlock> local_lock_guard(bucket_locks[bucket_number]);
+				#else
+					boost::unique_lock<boost::shared_mutex> local_exclusive_lock(bucket_mutexes[bucket_number]);
+				#endif
 			#endif
 			if (directory[bucket_number]) {
 				for (uint32_t i = 0; i < directory[bucket_number]->keys.size(); i++) {
@@ -158,16 +166,17 @@ namespace dbindex {
 					}
 				}
 			}
-			#ifdef _USE_LOCAL_LOCKS
-			local_exclusive_lock.unlock();
-			#endif
 		}
 
 		void remove(const std::string& key) override {
 			hash_value_t hash_value = hash.get_hash(key);
 			std::uint32_t bucket_number = hash_value & (directory_size-1);
 			#ifdef _USE_LOCAL_LOCKS
-			boost::unique_lock<boost::shared_mutex> local_exclusive_lock(bucket_mutexes[bucket_number]);
+				#ifdef _USE_SPINLOCK
+					boost::lock_guard<utils::spinlock> local_lock_guard(bucket_locks[bucket_number]);
+				#else
+					boost::unique_lock<boost::shared_mutex> local_exclusive_lock(bucket_mutexes[bucket_number]);
+				#endif
 			#endif
 			if (directory[bucket_number]) {
 				for (uint32_t i = 0; i < directory[bucket_number]->keys.size(); i++) {
@@ -177,9 +186,6 @@ namespace dbindex {
 					}
 				}
 			}
-			#ifdef _USE_LOCAL_LOCKS
-			local_exclusive_lock.unlock();
-			#endif
 		}
 
 		void range_scan(const std::string& start_key, const std::string* end_key, abstract_push_op& apo) override{
@@ -196,7 +202,11 @@ namespace dbindex {
 			for (std::uint32_t i = 0; i < directory_size; i++) {			
 				// std::cout << "i31" << std::endl;
 				#ifdef _USE_LOCAL_LOCKS
-				boost::shared_lock<boost::shared_mutex> local_shared_lock(bucket_mutexes[i]);
+					#ifdef _USE_SPINLOCK
+						boost::lock_guard<utils::spinlock> local_lock_guard(bucket_locks[i]);
+					#else
+						boost::shared_lock<boost::shared_mutex> local_shared_lock(bucket_mutexes[i]);
+					#endif
 				#endif
 				// std::cout << "i32" << std::endl;
 				// std::cout << directory.size() << std::endl;
@@ -212,9 +222,6 @@ namespace dbindex {
 						// std::cout << "i36" << std::endl;
 					}
 				}
-				#ifdef _USE_LOCAL_LOCKS
-				local_shared_lock.unlock();
-				#endif
 			}
 			// std::cout << "i4" << std::endl;
 			// Apply push op
@@ -244,7 +251,11 @@ namespace dbindex {
 			for (std::uint32_t i = 0; i < directory_size; i++) {			
 				// std::cout << "i31" << std::endl;
 				#ifdef _USE_LOCAL_LOCKS
-				boost::shared_lock<boost::shared_mutex> local_shared_lock(bucket_mutexes[i]);
+					#ifdef _USE_SPINLOCK
+						boost::lock_guard<utils::spinlock> local_lock_guard(bucket_locks[i]);
+					#else
+						boost::shared_lock<boost::shared_mutex> local_shared_lock(bucket_mutexes[i]);
+					#endif
 				#endif
 				// std::cout << "i32" << std::endl;
 				// std::cout << directory.size() << std::endl;
@@ -260,9 +271,6 @@ namespace dbindex {
 						// std::cout << "i36" << std::endl;
 					}
 				}
-				#ifdef _USE_LOCAL_LOCKS
-				local_shared_lock.unlock();
-				#endif
 			}
 			// std::cout << "i4" << std::endl;
 			// Apply push op
