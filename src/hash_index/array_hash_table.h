@@ -12,6 +12,7 @@
 
 #include "../abstract_index.h"
 #include "../push_ops.h"
+#include "../util/lock_util.h"
 
 typedef std::uint32_t hash_value_t;
 

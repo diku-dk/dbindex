@@ -152,7 +152,7 @@ void test_workload(std::uint8_t thread_count_max, std::string workload_string, s
 	constexpr std::uint32_t mod_value       = 1<<31;
 	ycsb::workload_properties workload = parse_workload_string(workload_string);
 
-	std::uint32_t iterations = 15;
+	std::uint32_t iterations = 5;
 
 	std::uint32_t throughputs[iterations*thread_count_max];
 
@@ -215,6 +215,33 @@ void test_workload(std::uint8_t thread_count_max, std::string workload_string, s
 			std::cout << "Thread count: " << t << ": " << std::endl;
 			for(std::uint32_t i = 0; i < iterations; i++) {
 				throughputs[t*iterations + i] = client.run_locks(t+1, ops);
+				std::cout << "Iteration: " << i << ": " <<  throughputs[t*iterations + i] << std::endl;
+			}
+			// Calculating the performance
+			double mean, std_dev;
+			calc_performance_results(iterations, &throughputs[t*iterations], mean, std_dev);
+
+			// Writing data to file
+			out_file << (t+1) << "\t" << mean << "\t" << std_dev << "\n";
+			std::cout << "Data written" << std::endl;
+		}
+		return;
+	} else if (workload_string == "workload_data") {
+		auto ops = 100000;
+
+		std::ofstream out_file;
+		std::string path = "../Thesis/results/data_test" + file_suffix + ".txt";
+		std::cout << path << std::endl;
+		out_file.open (path);
+		out_file.clear();
+		if (!out_file.is_open()) {
+			std::cout << "Data file isn't open." << std::endl;
+			return;
+		}
+		for(std::uint32_t t = 0; t < thread_count_max; t++) {
+			std::cout << "Thread count: " << t << ": " << std::endl;
+			for(std::uint32_t i = 0; i < iterations; i++) {
+				throughputs[t*iterations + i] = client.run_data_gen(t+1, ops);
 				std::cout << "Iteration: " << i << ": " <<  throughputs[t*iterations + i] << std::endl;
 			}
 			// Calculating the performance
