@@ -55,37 +55,37 @@ struct workload_properties {
 // Proportions:   read, update, scan, insert, RMW
 // Distributions: request, scan_len
 // Max_values:    scan_len, value_len
-static const workload_properties workload_a = {
+static const workload_properties workload_a = { // 50% read, 50% update
     100000, 100000, 
     0.5, 0.5, 0, 0, 0, 
     distribution_type::ZIPFIAN, distribution_type::UNUSED, 
     0, 100
 };
-static const workload_properties workload_b = {
+static const workload_properties workload_b = { // 95% read, 5% update, Zipfian
     100000, 100000, 
     0.95, 0.05, 0, 0, 0, 
     distribution_type::ZIPFIAN, distribution_type::UNUSED, 
     0, 100
 };
-static const workload_properties workload_c = {
+static const workload_properties workload_c = { // 100% read
     100000, 100000, 
     1, 0, 0, 0, 0, 
     distribution_type::ZIPFIAN, distribution_type::UNUSED, 
     0, 100
 };
-static const workload_properties workload_d = {
+static const workload_properties workload_d = { // 95% read, 5% update, Latest
     100000, 100000, 
     0.95, 0.05, 0, 0, 0, 
     distribution_type::LATEST, distribution_type::UNUSED, 
     0, 100
 };
-static const workload_properties workload_e = {
+static const workload_properties workload_e = { // 95% scan, 5% insert
     100000, 100000, 
     0, 0, 0.95, 0.05, 0, 
     distribution_type::ZIPFIAN, distribution_type::UNIFORM, 
     100, 100
 };
-static const workload_properties workload_f = {
+static const workload_properties workload_f = { // 50% read, 50% read-modify-write          ``````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````
     100000, 100000,
     0.5, 0, 0, 0, 0.5, 
     distribution_type::ZIPFIAN, distribution_type::UNUSED, 
