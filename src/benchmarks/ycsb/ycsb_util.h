@@ -24,15 +24,5 @@ inline uint64_t fnv_hash_64(uint64_t val) {
   return hash;
 }
 
-inline double random_double(double min = 0.0, double max = 1.0) {
-    static std::default_random_engine generator;
-    static std::uniform_real_distribution<double> uniform(min, max);
-    return uniform(generator);
-}
-
-inline char random_print_char(std::uint32_t rand_char_seed) {
-  return rand_r(&rand_char_seed) % 94 + 33;
-}
-
 }
 #endif

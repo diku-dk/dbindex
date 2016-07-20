@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <iostream>
 #include <algorithm>
+#include <assert.h>
 #include <memory>
 #include "abstract_hash.h"
 #include "../macros.h"

@@ -16,9 +16,8 @@ namespace ycsb {
 
 class client {
  public:
-    client(dbindex::abstract_index& _hash_index, const workload_properties& p)
-     : hash_index(_hash_index), wl_p(p) {
-    }
+    client(dbindex::abstract_index& _hash_index, const workload_properties& _wl_p)
+     : hash_index(_hash_index), wl_p(_wl_p) {}
     
     std::uint32_t run_workload(std::uint8_t thread_count);
     void run_build_records(std::uint8_t thread_count);

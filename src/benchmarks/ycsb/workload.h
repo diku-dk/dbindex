@@ -21,13 +21,12 @@ namespace ycsb {
 
 class workload {
   public:
-    void init(const workload_properties& p);
+    void init(const workload_properties& wl_p);
     
     void do_insert(dbindex::abstract_index& hash_index);
     void do_transaction(dbindex::abstract_index& hash_index);
 
     void build_value(std::string& value);
-    void build_max_value(std::string& value);
     
     std::string next_sequence_key(); 
     std::string next_transaction_key(); 
@@ -66,10 +65,10 @@ class workload {
     limit_op limit_push_op;
 
     void do_transaction_read(dbindex::abstract_index& hash_index);
-    void do_transaction_read_modify_write(dbindex::abstract_index& hash_index);
-    void do_transaction_range_scan(dbindex::abstract_index& hash_index);
-    void do_transaction_update(dbindex::abstract_index& hash_index);
     void do_transaction_insert(dbindex::abstract_index& hash_index);
+    void do_transaction_update(dbindex::abstract_index& hash_index);
+    void do_transaction_range_scan(dbindex::abstract_index& hash_index);
+    void do_transaction_read_modify_write(dbindex::abstract_index& hash_index);
 };
 
 inline std::string workload::next_sequence_key() {
@@ -165,8 +164,6 @@ inline void workload::do_transaction_update(dbindex::abstract_index& hash_index)
 
 inline void workload::do_transaction_range_scan(dbindex::abstract_index& hash_index) {
     const std::string& start_key = next_transaction_key();
-    std::string end_key;
-    build_max_value(end_key);
 
     limit_push_op.set_len(next_scan_length());
     
