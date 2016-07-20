@@ -91,46 +91,50 @@ void test_length_performance(dbindex::abstract_hash<std::uint32_t>* hash, std::u
 
     // Mean
     for (std::uint8_t k = 0; k < used_length_amounts; k++)
-        time_means[k] = time_means[k]/iterations;
+        time_means[k] /= iterations;
     // Variance
     for (std::uint32_t i = 0; i < iterations; i++)
         for (std::uint8_t k = 0; k < used_length_amounts; k++)
             time_vars[k] += (times[i][k] - time_means[k]) * (times[i][k] - time_means[k]);
 
     for (std::uint8_t k = 0; k < used_length_amounts; k++)
-        time_vars[k] = time_vars[k]/iterations;
+        time_vars[k] /= iterations;
 
     for (std::uint8_t k = 0; k < used_length_amounts; k++)
         out_file << std::to_string((k*stride)+1) << "\t" << std::to_string(time_means[k]/(amount*repeats)) << "\t" << std::to_string(sqrt((double)time_vars[k]/((amount*repeats)*(amount*repeats)))) << "\n";
     std::cout << "Written to file" << std::endl;
 }
 
-void test_core_performance(dbindex::abstract_hash<std::uint32_t>* hash, std::string *keys, std::uint32_t amount, std::uint32_t iterations, utils::timing_obj& timing, std::uint8_t t) {
+void test_core_performance(dbindex::abstract_hash<std::uint32_t>* hash, std::string *keys, std::uint32_t amount, std::uint32_t iterations, std::vector<utils::timing_obj>& timings, std::uint8_t t) {
     using namespace std::chrono;
     stick_thread_to_core(pthread_self(), (t*4 + (t/8)*2 + t/16) % 32);
 
     // Warmup 
-    timing.set_start(high_resolution_clock::now());
-    for(std::uint32_t j = 0; j < amount; j++)
-        hash->get_hash(keys[j]);
-    timing.set_end(high_resolution_clock::now());
-
-    timing.set_start(high_resolution_clock::now());
-    for (std::uint32_t i = 0; i < iterations; i++)
-        for(std::uint32_t j = 0; j < amount; j++) 
+    for (std::uint32_t i = 0; i < iterations; i++) {
+        timings[i].set_start(high_resolution_clock::now());
+        for(std::uint32_t j = 0; j < amount; j++)
             hash->get_hash(keys[j]);
-    timing.set_end(high_resolution_clock::now());
+        timings[i].set_end(high_resolution_clock::now());
+    }
+
+    for (std::uint32_t i = 0; i < iterations; i++) {
+        timings[i].set_start(high_resolution_clock::now());
+        for (std::uint32_t i = 0; i < iterations; i++)
+            for(std::uint32_t j = 0; j < amount; j++) 
+                hash->get_hash(keys[j]);
+        timings[i].set_end(high_resolution_clock::now());
+    }
 }
 
-std::uint64_t test_cores_performance(dbindex::abstract_hash<std::uint32_t>* hash, std::uint8_t num_threads, std::uint8_t byte_len, std::uint32_t amount) {
+void test_cores_performance(dbindex::abstract_hash<std::uint32_t>* hash, std::uint8_t num_threads, std::uint8_t byte_len, std::uint32_t amount, std::ofstream& out_file) {
 
     // Testing
     std::vector<std::string> keys(amount*num_threads);
     generate_random_strings_length(byte_len, keys);
 
-    std::vector<std::thread>       threads(num_threads);
-    std::vector<utils::timing_obj> timings(num_threads);
-    std::uint32_t iterations = 10000000;
+    const std::uint32_t iterations = 10000;
+    std::vector<std::thread> threads(num_threads);
+    std::vector<std::vector<utils::timing_obj>> timings(num_threads, std::vector<utils::timing_obj>(iterations));
 
     // Calculating the hashing
     for(std::uint32_t t = 0; t < num_threads; t++) {
@@ -140,15 +144,36 @@ std::uint64_t test_cores_performance(dbindex::abstract_hash<std::uint32_t>* hash
         threads[t].join();
     }
 
-    std::uint64_t total_time = 0;
+    std::vector<double> iteration_times(iterations, 0);
+    std::vector<double> iteration_tp(iterations, 0);
+    double tp_mean = 0;
+    double tp_var = 0;
     for (std::uint8_t t = 0; t < num_threads; t++) {
-       total_time += timings[t].get_duration_milliseconds();
+        for (std::uint8_t i = 0; i < iterations; i++) {
+            iteration_times[i] += timings[t][i].get_duration_milliseconds();
+        }
     }
 
-    std::cout << "Time per thread: " << total_time/num_threads << "ms / " << (((uint64_t)amount*iterations*num_threads)*1000)/total_time << " TP." <<  std::endl;
-    std::cout << "Total CPU Time:  " << total_time << "ms / " << (((uint64_t)amount*iterations)*num_threads*num_threads*1000)/total_time << " TP."<<  std::endl;
+    // Average iteration time
+    for (std::uint8_t i = 0; i < iterations; i++)
+        iteration_times[i] /= num_threads;
+    
+    for (std::uint8_t i = 0; i < iterations; i++)
+        iteration_tp[i] = 1000*num_threads*amount*iterations/iteration_times[i];
 
-    return (((uint64_t)amount*iterations*num_threads*num_threads*1000))/total_time;
+    // Mean
+    for (std::uint8_t i = 0; i < iterations; i++)
+        tp_mean += iteration_tp[i];
+
+    tp_mean /= iterations;
+
+    // Variance
+    for (std::uint32_t i = 0; i < iterations; i++)
+        tp_var += (iteration_tp[i] - tp_mean) * (iteration_tp[i] - tp_mean);
+
+    tp_var /= iterations;
+
+    out_file << std::to_string(num_threads) << "\t" << std::to_string(tp_mean) << "\t" << std::to_string(sqrt(tp_var)) << "\n";
 }
 
 int main(int argc, char *argv[]) {
@@ -200,13 +225,6 @@ int main(int argc, char *argv[]) {
     /*********** General testing ************/
     /****************************************/
     std::ofstream out_file;
-    // std::ifstream in_file;
-    // char * in_buffer;
-    // std::string in_str;
-    // std::uint32_t in_size;
-    std::uint64_t thread_tp;
-
-    std::map<std::uint32_t, std::uint32_t> hist;
 
     std::uint32_t len_amount   = 5;
     std::uint8_t  core_key_len = 64;
@@ -227,8 +245,7 @@ int main(int argc, char *argv[]) {
         out_file.open ("../Thesis/src/Results/Cores/" + hash_type + "_" + std::to_string(num_tables) + "_tables" + test_type + ".txt");
         std::cout << "../Thesis/src/Results/Cores/" + hash_type + "_" + std::to_string(num_tables) + "_tables" + test_type + ".txt" << std::endl;
         for (std::uint8_t tc = 1; tc <= num_threads; tc++) {
-            thread_tp = test_cores_performance(hash, tc, core_key_len, len_amount);
-            out_file << (int)tc << "\t" << thread_tp << std::endl;
+            test_cores_performance(hash, tc, core_key_len, len_amount, out_file);
         }
         out_file.flush();
         out_file.close();
