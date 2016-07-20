@@ -45,7 +45,8 @@ void generate_random_strings_length(std::uint8_t byte_len, std::vector<std::stri
 void test_length_performance(dbindex::abstract_hash<std::uint32_t>* hash, std::uint32_t amount, const std::uint8_t max_key_len, std::ofstream& out_file) {
     using namespace std::chrono;
 
-    const std::uint32_t iterations          = 1000;
+    const std::uint32_t iterations          = 10000;
+    const std::uint32_t repeats             = 10000;
     const std::uint8_t  stride              = 1;
     const std::uint8_t  used_length_amounts = max_key_len/stride;
 
@@ -71,13 +72,13 @@ void test_length_performance(dbindex::abstract_hash<std::uint32_t>* hash, std::u
 
             start = high_resolution_clock::now();
             // Calculating the hashing
-            for (std::uint32_t c = 0; c < iterations; c++) {    
+            for (std::uint32_t c = 0; c < repeats; c++) {    
                 for(std::uint32_t j = 0; j < amount; j++) {
                     hash->get_hash(keys[j]);
                 }
             }
             end = high_resolution_clock::now();
-            times[i][k] = duration_cast<nanoseconds>((end-start)/(amount*iterations)).count();
+            times[i][k] = duration_cast<nanoseconds>((end-start)/(amount*repeats)).count();
         }
     }  
     std::vector<double> time_means(used_length_amounts, 0);
@@ -176,7 +177,7 @@ int main(int argc, char *argv[]) {
     /*********** Mult_Shift_Hash testing ************/
     /************************************************/
 
-    const std::uint8_t num_tables = 8;
+    const std::uint8_t num_tables = 16;
 
     switch ((int)(argv[1][0]-'0')) {
     case 1:   
