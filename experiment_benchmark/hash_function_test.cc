@@ -149,20 +149,24 @@ void test_cores_performance(dbindex::abstract_hash<std::uint32_t>* hash, std::ui
     double tp_mean = 0;
     double tp_var = 0;
     for (std::uint8_t t = 0; t < num_threads; t++) {
-        for (std::uint8_t i = 0; i < iterations; i++) {
-            iteration_times[i] += timings[t][i].get_duration_milliseconds();
+        for (std::uint32_t i = 0; i < iterations; i++) {
+            iteration_times[i] += timings[t][i].get_duration_microseconds();
         }
     }
 
     // Average iteration time
-    for (std::uint8_t i = 0; i < iterations; i++)
+    for (std::uint32_t i = 0; i < iterations; i++) {
         iteration_times[i] /= num_threads;
+        std::cout << iteration_times[i] << std::endl;
+    }
     
-    for (std::uint8_t i = 0; i < iterations; i++)
-        iteration_tp[i] = 1000*num_threads*amount*iterations/iteration_times[i];
+    for (std::uint32_t i = 0; i < iterations; i++) {
+        iteration_tp[i] = 1000*(1000*num_threads*amount*iterations/iteration_times[i]);
+        std::cout << 1000*num_threads*amount*iterations/iteration_times[i] << ": " <<    iteration_tp[i] << std::endl;
+    }
 
     // Mean
-    for (std::uint8_t i = 0; i < iterations; i++)
+    for (std::uint32_t i = 0; i < iterations; i++)
         tp_mean += iteration_tp[i];
 
     tp_mean /= iterations;

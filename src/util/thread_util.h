@@ -29,6 +29,10 @@ struct timing_obj {
 	long get_duration_milliseconds() {
 		return std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
 	}
+
+	long get_duration_microseconds() {
+		return std::chrono::duration_cast<std::chrono::microseconds>(end-start).count();
+	}
 	
 	long get_duration_nanoseconds() {
 		return std::chrono::duration_cast<std::chrono::nanoseconds>(end-start).count();
