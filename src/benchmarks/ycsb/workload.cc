@@ -13,41 +13,41 @@
 
 namespace ycsb {
 
-void workload::init(const workload_properties& p) {
-    if (p.read_proportion > 0) {
-        operation_selector.add_option(operation_type::READ, p.read_proportion);
+void workload::init(const workload_properties& wl_p) {
+    if (wl_p.read_proportion > 0) {
+        operation_selector.add_option(operation_type::READ, wl_p.read_proportion);
     }
-    if (p.update_proportion > 0) {
-        operation_selector.add_option(operation_type::UPDATE, p.update_proportion);
+    if (wl_p.update_proportion > 0) {
+        operation_selector.add_option(operation_type::UPDATE, wl_p.update_proportion);
     }
-    if (p.insert_proportion > 0) {
-        operation_selector.add_option(operation_type::INSERT, p.insert_proportion);
+    if (wl_p.insert_proportion > 0) {
+        operation_selector.add_option(operation_type::INSERT, wl_p.insert_proportion);
     }
-    if (p.scan_proportion > 0) {
-        operation_selector.add_option(operation_type::SCAN, p.scan_proportion);
+    if (wl_p.scan_proportion > 0) {
+        operation_selector.add_option(operation_type::SCAN, wl_p.scan_proportion);
     }
-    if (p.read_modify_write_proportion  > 0) {
-        operation_selector.add_option(operation_type::READMODIFYWRITE, p.read_modify_write_proportion );
+    if (wl_p.read_modify_write_proportion  > 0) {
+        operation_selector.add_option(operation_type::READMODIFYWRITE, wl_p.read_modify_write_proportion );
     }
     
-    insert_sequence_generator.set(p.record_count);
+    insert_sequence_generator.set(wl_p.record_count);
 
     // Instantiate generators
     rand_char_seed      = static_cast<std::uint32_t>(std::chrono::high_resolution_clock::now().time_since_epoch().count()) ^ (std::uint32_t) std::hash<std::thread::id>()(std::this_thread::get_id());
 
-    max_value_len       = p.max_value_len;
-    record_count        = p.record_count;
-    operation_count     = p.operation_count;
+    max_value_len       = wl_p.max_value_len;
+    record_count        = wl_p.record_count;
+    operation_count     = wl_p.operation_count;
     value_len_generator = new uniform_generator<hash_value_t>(1, max_value_len);
     key_generator       = new counter_generator<hash_value_t>(0);
     
     // Instantiate selectors
-    switch(p.request_dist) {
+    switch(wl_p.request_dist) {
         case distribution_type::UNIFORM:
-            key_selector = new uniform_generator<hash_value_t>(0, p.record_count - 1);
+            key_selector = new uniform_generator<hash_value_t>(0, wl_p.record_count - 1);
             break;
         case distribution_type::ZIPFIAN:
-            key_selector = new scrambled_zipfian_generator<hash_value_t>(p.record_count + (p.operation_count * p.insert_proportion * 2U));
+            key_selector = new scrambled_zipfian_generator<hash_value_t>(wl_p.record_count + (wl_p.operation_count * wl_p.insert_proportion * 2U));
             break;
         case distribution_type::LATEST:
             key_selector = new skewed_latest_generator<hash_value_t>(insert_sequence_generator); 
@@ -55,20 +55,20 @@ void workload::init(const workload_properties& p) {
         case distribution_type::UNUSED:
             break;
         default:
-            throw std::invalid_argument("The given request-distribution is not allowed: " + std::to_string(p.request_dist));
+            throw std::invalid_argument("The given request-distribution is not allowed: " + std::to_string(wl_p.request_dist));
     }
         
-    switch(p.scan_len_dist) {
+    switch(wl_p.scan_len_dist) {
         case distribution_type::UNIFORM:
-            scan_len_selector = new uniform_generator<hash_value_t>(1, p.max_scan_len);
+            scan_len_selector = new uniform_generator<hash_value_t>(1, wl_p.max_scan_len);
             break;
         case distribution_type::ZIPFIAN:
-            scan_len_selector = new zipfian_generator<hash_value_t>(1, p.max_scan_len);
+            scan_len_selector = new zipfian_generator<hash_value_t>(1, wl_p.max_scan_len);
             break;
         case distribution_type::UNUSED:
             break;
         default:
-            throw std::invalid_argument("The given scan-length-distribution is not allowed: " + std::to_string(p.scan_len_dist));
+            throw std::invalid_argument("The given scan-length-distribution is not allowed: " + std::to_string(wl_p.scan_len_dist));
     }
 }
 
@@ -78,10 +78,6 @@ void workload::build_value(std::string& value) {
     for (hash_value_t c = 0; c < string_len; c++) {
         value += rand_r(&rand_char_seed) % 94 + 33;
     }
-}
-
-void workload::build_max_value(std::string& value) {
-    value = std::string(max_value_len+1, (char)0xFF);
 }
 
 }

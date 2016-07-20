@@ -52,19 +52,13 @@ namespace dbindex {
                 }
                 entry_count = 0;
             }
-            void set_equal_to_copy(const hash_bucket &other){
-                local_depth  = other.local_depth;
-                entry_count  = other.entry_count;
-                std::copy(&other.keys[0], &other.keys[bucket_entries], &keys[0]);
-                std::copy(&other.values[0], &other.values[bucket_entries], &values[0]);
-            }
             void insert_next(std::string new_key, std::string new_value) {
                 keys  [entry_count] = new_key;
                 values[entry_count] = new_value;
                 entry_count++;
             }
 
-            void move_last_to(std::uint32_t i) {
+            void move_last_to(std::uint8_t i) {
                 entry_count--;
                 keys  [i] = keys[entry_count];
                 values[i] = values[entry_count];
@@ -175,98 +169,6 @@ namespace dbindex {
             return new_local_depth;
         }
 
-        void insert_internal_shared(const std::string& key, const std::string& new_value) {
-            #ifdef _USE_GLOBAL_LOCK
-                #ifdef _USE_SPINLOCK
-                    { // Start global lockguard scope
-                    boost::lock_guard<utils::spinlock> global_lock_guard(global_lock);
-                #else
-                    boost::shared_lock<boost::shared_mutex> global_shared_lock(global_mutex); 
-                #endif
-            #endif
-            hash_value_t hash_value = hash.get_hash(key);
-            // std::cout << "Key: " << key << ", hash_value: " <<  hash_value << std::endl;
-            std::uint32_t bucket_number = directory[hash_value & create_bit_mask(global_depth-1)]->original_index;
-            // std::cout << "A: " << bucket_number << ", " << directory_size() << std::endl;
-
-            #ifdef _USE_LOCAL_LOCKS
-                #ifdef _USE_SPINLOCK
-                    { // Start local lockguard scope
-                    boost::lock_guard<utils::spinlock> local_lock_guard(directory[bucket_number]->local_lock);
-                #else
-                    boost::unique_lock<boost::shared_mutex> local_exclusive_lock(directory[bucket_number]->local_mutex); 
-                #endif
-            #endif
-
-            if(std::find(directory[bucket_number]->keys.begin(), directory[bucket_number]->keys.end(), key) != directory[bucket_number]->keys.end()) { // Key already present.
-                return;
-            }
-            // std::cout << "B" << std::endl;
-            while (directory[hash_value & create_bit_mask(global_depth-1)]->original_index != bucket_number) { // Ensuring correct bucket number 
-                #ifdef _USE_LOCAL_LOCKS
-                    #ifdef _USE_SPINLOCK
-                        local_lock_guard.~lock_guard<utils::spinlock>(); // [?!]
-                    #else
-                        local_exclusive_lock.unlock(); 
-                    #endif
-                #endif
-                // std::cout << "B1" << std::endl;
-                bucket_number = directory[hash_value & create_bit_mask(global_depth-1)]->original_index;
-                // std::cout << "B2" << std::endl;
-                #ifdef _USE_LOCAL_LOCKS
-                    #ifdef _USE_SPINLOCK
-                        boost::lock_guard<utils::spinlock> local_lock_guard(directory[bucket_number]->local_lock);
-                    #else
-                        local_exclusive_lock = boost::unique_lock<boost::shared_mutex>(directory[bucket_number]->local_mutex); 
-                    #endif
-                #endif
-                // std::cout << "B3" << std::endl;
-
-            }
-            // std::cout << "C" << std::endl;
-
-            if (directory[bucket_number]->entry_count < bucket_entries) {
-                directory[bucket_number]->insert_next(key, new_value);
-                return;
-            } 
-            std::uint8_t new_local_depth = calc_new_local_depth(directory[bucket_number], hash_value, bucket_number);
-            if (new_local_depth <= global_depth) {
-                // std::cout << "D" << std::endl;
-                std::vector<hash_bucket*> buckets_to_insert = create_split_buckets(directory[bucket_number], bucket_number, key, new_value);
-
-                for (typename std::vector<hash_bucket*>::iterator it = buckets_to_insert.begin(); it != buckets_to_insert.end(); ++it) {
-                    hash_bucket*  image_bucket   = *it;
-                    std::uint32_t ptr_index      = image_bucket->original_index;
-                    while (ptr_index < directory_size()) { // Update all other pointers with this prefix.
-                        directory[ptr_index] = image_bucket;
-                        ptr_index += (1<<image_bucket->local_depth);
-                    }
-                }
-                return;
-            } else if (new_local_depth == 255) {
-                // std::cout << "E" << std::endl;
-                // std::cout << "new_local_depth " << (std::int32_t)new_local_depth << std::endl;
-                throw "Overflow Bucket";
-            }
-            // std::cout << "F" << std::endl;
-            #ifdef _USE_LOCAL_LOCKS
-                #ifdef _USE_SPINLOCK
-                    } // end local lockguard scope
-                    // local_lock_guard.unlock();
-                #else
-                    local_exclusive_lock.unlock(); 
-                #endif
-            #endif
-            #ifdef _USE_GLOBAL_LOCK
-                #ifdef _USE_SPINLOCK
-                    } // end global lockguard scope
-                    // global_lock_guard.unlock();
-                #else
-                    global_shared_lock.unlock(); 
-                #endif
-            #endif
-            insert_internal_exclusive(key, new_value);
-        }
         void insert_internal_exclusive(const std::string& key, const std::string& new_value) {
             // std::cout << "EXCL" << std::endl;
             #ifdef _USE_GLOBAL_LOCK
@@ -417,7 +319,96 @@ namespace dbindex {
         }
 
         void insert(const std::string& key, const std::string& new_value) override {
-            insert_internal_shared(key, new_value);
+            #ifdef _USE_GLOBAL_LOCK
+                #ifdef _USE_SPINLOCK
+                    { // Start global lockguard scope
+                    boost::lock_guard<utils::spinlock> global_lock_guard(global_lock);
+                #else
+                    boost::shared_lock<boost::shared_mutex> global_shared_lock(global_mutex); 
+                #endif
+            #endif
+            hash_value_t hash_value = hash.get_hash(key);
+            // std::cout << "Key: " << key << ", hash_value: " <<  hash_value << std::endl;
+            std::uint32_t bucket_number = directory[hash_value & create_bit_mask(global_depth-1)]->original_index;
+            // std::cout << "A: " << bucket_number << ", " << directory_size() << std::endl;
+
+            #ifdef _USE_LOCAL_LOCKS
+                #ifdef _USE_SPINLOCK
+                    { // Start local lockguard scope
+                    boost::lock_guard<utils::spinlock> local_lock_guard(directory[bucket_number]->local_lock);
+                #else
+                    boost::unique_lock<boost::shared_mutex> local_exclusive_lock(directory[bucket_number]->local_mutex); 
+                #endif
+            #endif
+
+            if(std::find(directory[bucket_number]->keys.begin(), directory[bucket_number]->keys.end(), key) != directory[bucket_number]->keys.end()) { // Key already present.
+                return;
+            }
+            // std::cout << "B" << std::endl;
+            while (directory[hash_value & create_bit_mask(global_depth-1)]->original_index != bucket_number) { // Ensuring correct bucket number 
+                #ifdef _USE_LOCAL_LOCKS
+                    #ifdef _USE_SPINLOCK
+                        local_lock_guard.~lock_guard<utils::spinlock>(); // [?!]
+                    #else
+                        local_exclusive_lock.unlock(); 
+                    #endif
+                #endif
+                // std::cout << "B1" << std::endl;
+                bucket_number = directory[hash_value & create_bit_mask(global_depth-1)]->original_index;
+                // std::cout << "B2" << std::endl;
+                #ifdef _USE_LOCAL_LOCKS
+                    #ifdef _USE_SPINLOCK
+                        boost::lock_guard<utils::spinlock> local_lock_guard(directory[bucket_number]->local_lock);
+                    #else
+                        local_exclusive_lock = boost::unique_lock<boost::shared_mutex>(directory[bucket_number]->local_mutex); 
+                    #endif
+                #endif
+                // std::cout << "B3" << std::endl;
+
+            }
+            // std::cout << "C" << std::endl;
+
+            if (directory[bucket_number]->entry_count < bucket_entries) {
+                directory[bucket_number]->insert_next(key, new_value);
+                return;
+            } 
+            std::uint8_t new_local_depth = calc_new_local_depth(directory[bucket_number], hash_value, bucket_number);
+            if (new_local_depth <= global_depth) {
+                // std::cout << "D" << std::endl;
+                std::vector<hash_bucket*> buckets_to_insert = create_split_buckets(directory[bucket_number], bucket_number, key, new_value);
+
+                for (typename std::vector<hash_bucket*>::iterator it = buckets_to_insert.begin(); it != buckets_to_insert.end(); ++it) {
+                    hash_bucket*  image_bucket   = *it;
+                    std::uint32_t ptr_index      = image_bucket->original_index;
+                    while (ptr_index < directory_size()) { // Update all other pointers with this prefix.
+                        directory[ptr_index] = image_bucket;
+                        ptr_index += (1<<image_bucket->local_depth);
+                    }
+                }
+                return;
+            } else if (new_local_depth == 255) {
+                // std::cout << "E" << std::endl;
+                // std::cout << "new_local_depth " << (std::int32_t)new_local_depth << std::endl;
+                throw "Overflow Bucket";
+            }
+            // std::cout << "F" << std::endl;
+            #ifdef _USE_LOCAL_LOCKS
+                #ifdef _USE_SPINLOCK
+                    } // end local lockguard scope
+                    // local_lock_guard.unlock();
+                #else
+                    local_exclusive_lock.unlock(); 
+                #endif
+            #endif
+            #ifdef _USE_GLOBAL_LOCK
+                #ifdef _USE_SPINLOCK
+                    } // end global lockguard scope
+                    // global_lock_guard.unlock();
+                #else
+                    global_shared_lock.unlock(); 
+                #endif
+            #endif
+            insert_internal_exclusive(key, new_value);
         }
         
         void update(const std::string& key, const std::string& new_value) override {
