@@ -78,7 +78,7 @@ void test_length_performance(dbindex::abstract_hash<std::uint32_t>* hash, std::u
                 }
             }
             end = high_resolution_clock::now();
-            times[i][k] = duration_cast<nanoseconds>((end-start)/(amount*repeats)).count();
+            times[i][k] = duration_cast<nanoseconds>(end-start).count();
         }
     }  
     std::vector<double> time_means(used_length_amounts, 0);
@@ -92,20 +92,22 @@ void test_length_performance(dbindex::abstract_hash<std::uint32_t>* hash, std::u
     // Mean
     for (std::uint8_t k = 0; k < used_length_amounts; k++)
         time_means[k] = time_means[k]/iterations;
-
     // Variance
     for (std::uint32_t i = 0; i < iterations; i++)
         for (std::uint8_t k = 0; k < used_length_amounts; k++)
             time_vars[k] += (times[i][k] - time_means[k]) * (times[i][k] - time_means[k]);
 
     for (std::uint8_t k = 0; k < used_length_amounts; k++)
-        out_file << std::to_string((k*stride)+1) << "\t" << std::to_string(time_means[k]) << "\t" << std::to_string(sqrt((double)time_vars[k]/iterations)) << "\n";
+        time_vars[k] = time_vars[k]/iterations;
+
+    for (std::uint8_t k = 0; k < used_length_amounts; k++)
+        out_file << std::to_string((k*stride)+1) << "\t" << std::to_string(time_means[k]/(amount*repeats)) << "\t" << std::to_string(sqrt((double)time_vars[k]/((amount*repeats)*(amount*repeats)))) << "\n";
     std::cout << "Written to file" << std::endl;
 }
 
 void test_core_performance(dbindex::abstract_hash<std::uint32_t>* hash, std::string *keys, std::uint32_t amount, std::uint32_t iterations, utils::timing_obj& timing, std::uint8_t t) {
     using namespace std::chrono;
-    stick_thread_to_core(pthread_self(), (t*2)+1);
+    stick_thread_to_core(pthread_self(), (t*4 + (t/8)*2 + t/16) % 32);
 
     // Warmup 
     timing.set_start(high_resolution_clock::now());
@@ -177,7 +179,7 @@ int main(int argc, char *argv[]) {
     /*********** Mult_Shift_Hash testing ************/
     /************************************************/
 
-    const std::uint8_t num_tables = 16;
+    const std::uint8_t num_tables = 64;
 
     switch ((int)(argv[1][0]-'0')) {
     case 1:   
@@ -222,23 +224,6 @@ int main(int argc, char *argv[]) {
         break;
     case 4: 
         test_type = "_cores";
-        // if (num_threads != 1)
-        // {
-        //     in_file.open ("../Thesis/src/Results/Cores/" + hash_type + "_" + std::to_string(num_tables) + "_tables" + test_type + ".txt");
-
-        //     // get size of file
-        //     in_file.seekg(0,std::ifstream::end);
-        //     in_size=in_file.tellg();
-        //     in_file.seekg(0);
-
-        //     // allocate memory for file content
-        //     in_buffer = new char [in_size];
-
-        //     // read content of in_file
-        //     in_file.read (in_buffer,in_size);
-        //     in_str = std::string(in_buffer, in_size);
-        //     in_file.close();
-        // }
         out_file.open ("../Thesis/src/Results/Cores/" + hash_type + "_" + std::to_string(num_tables) + "_tables" + test_type + ".txt");
         std::cout << "../Thesis/src/Results/Cores/" + hash_type + "_" + std::to_string(num_tables) + "_tables" + test_type + ".txt" << std::endl;
         for (std::uint8_t tc = 1; tc <= num_threads; tc++) {
