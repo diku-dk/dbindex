@@ -26,12 +26,6 @@ class workload {
     void do_insert(dbindex::abstract_index& hash_index);
     void do_transaction(dbindex::abstract_index& hash_index);
 
-    void build_value(std::string& value);
-    
-    std::string next_sequence_key(); 
-    std::string next_transaction_key(); 
-    operation_type next_operation()     { return operation_selector.next(); }
-    size_t next_scan_length()           { return scan_len_selector->next(); }
     std::uint32_t get_record_count()    { return record_count; }
     std::uint32_t get_operation_count() { return operation_count; }
     
@@ -69,6 +63,13 @@ class workload {
     void do_transaction_update(dbindex::abstract_index& hash_index);
     void do_transaction_range_scan(dbindex::abstract_index& hash_index);
     void do_transaction_read_modify_write(dbindex::abstract_index& hash_index);
+
+    void build_value(std::string& value);
+    
+    std::string next_sequence_key(); 
+    std::string next_transaction_key(); 
+    operation_type next_operation()     { return operation_selector.next(); }
+    size_t next_scan_length()           { return scan_len_selector->next(); }
 };
 
 inline std::string workload::next_sequence_key() {
